@@ -1,0 +1,1186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finance Dashboard</title>
+
+    <link rel="stylesheet" href="/static/admin.css" />
+    <link rel="stylesheet" href="/static/user.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='fonts/css/all.min.css') }}">
+
+
+  </head>
+
+  <body>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <i
+          class="fa-solid fa-building-columns"
+          style="color: white; font-size: 1.125rem"
+        ></i>
+        <h1 class="logo-text">Admin/Assistant Dashboard</h1>
+      </div>
+
+      <nav class="sidebar-nav custom-scrollbar">
+        <a
+          id="nav-dashboard"
+          class="nav-item active"
+          onclick="switchView('dashboard')"
+        >
+          <div class="nav-item-content">
+            <i class="fa-solid fa-border-all"></i>
+            <span>Dashboard</span>
+          </div>
+        </a>
+
+        <a
+          id="nav-notifications"
+          class="nav-item"
+          onclick="switchView('notifications')"
+        >
+          <div class="nav-item-content">
+            <i class="fa-regular fa-bell"></i>
+            <span>Notifications</span>
+          </div>
+        </a>
+
+        <a id="nav-settings" class="nav-item" onclick="switchView('settings')">
+          <div class="nav-item-content">
+            <i class="fa-solid fa-gear"></i>
+            <span>Settings</span>
+          </div>
+        </a>
+
+        {% if session['role'] == 'AssistantAdmin' and session['dept'] ==
+        "Finance" %}
+        <a id="nav-requests" class="nav-item" onclick="switchView('requests')">
+          <div class="nav-item-content">
+            <i class="fa-solid fa-file-invoice-dollar"></i>
+            <span style="line-height: 1.2">Request Type<br />Management</span>
+          </div>
+        </a>
+        {% endif %}
+      </nav>
+
+      <div class="sidebar-footer">
+        <div style="padding: 0 20px 10px 20px; color: #9ca3af; font-size: 12px">
+          Logged in as: <br />
+          <strong style="color: white">{{ session['role'] }}</strong><br />
+          <span style="color: #6b7280">{{ session['position'] }}</span>
+        </div>
+
+        <a href="/logout" class="logout-link">
+          <i
+            class="fa-solid fa-arrow-right-from-bracket"
+            style="margin-right: 12px"
+          ></i>
+          <span>Logout</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main-content">
+      <!-- DASHBOARD -->
+      <div id="view-dashboard" class="view-section">
+        <header class="top-header">
+          <div class="header-title">
+            <h2>{{ session['role'] }} Dashboard</h2>
+            <p>Welcome back, {{ session['email'] }}</p>
+          </div>
+
+          <div class="header-actions">
+            <div class="date-widget">
+              <i class="fa-regular fa-calendar" style="margin-right: 8px"></i>
+              <span class="current-date-display"></span>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-scroll custom-scrollbar">
+          <!-- STATS -->
+          <div class="stats-grid">
+            <div class="stat-card card-blue">
+              <div class="stat-header">
+                <div class="icon-box">
+                  <i class="fa-regular fa-calendar-check"></i>
+                </div>
+              </div>
+              <div>
+                <h3 class="stat-value">{{ approvals_today }}</h3>
+                <p class="stat-label">Approvals Today</p>
+              </div>
+            </div>
+
+            <div class="stat-card card-yellow">
+              <div class="stat-header">
+                <div class="icon-box"><i class="fa-regular fa-clock"></i></div>
+              </div>
+              <div>
+                <h3 class="stat-value">{{ pending_count }}</h3>
+                <p class="stat-label">Pending Approvals</p>
+              </div>
+            </div>
+
+            <div class="stat-card card-green">
+              <div class="stat-header">
+                <div class="icon-box"><i class="fa-solid fa-check"></i></div>
+              </div>
+              <div>
+                <h3 class="stat-value">{{ approved_count }}</h3>
+                <p class="stat-label">Total Approved</p>
+              </div>
+            </div>
+
+            <div class="stat-card card-red">
+              <div class="stat-header">
+                <div class="icon-box"><i class="fa-solid fa-xmark"></i></div>
+              </div>
+              <div>
+                <h3 class="stat-value">{{ rejected_count }}</h3>
+                <p class="stat-label">Total Rejected</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- REQUESTS TABLE -->
+          <div class="card-container">
+            <div class="table-header">
+              <div class="table-title">
+                {% if session['role'] in ['Admin','AssistantAdmin','SuperAdmin']
+                %}
+                <h3>Requests</h3>
+                {% endif %}
+                <span class="count-badge" id="table-count-badge"
+                  >{{ recent_requests|length }}</span
+                >
+              </div>
+
+              <div class="table-actions">
+                <div class="search-box">
+                  <i class="fa-solid fa-search"></i>
+                  <input
+                    type="text"
+                    id="search-input"
+                    placeholder="Search..."
+                    class="search-input"
+                    oninput="filterTable()"
+                  />
+                </div>
+
+                <select
+                  id="status-filter"
+                  class="filter-select"
+                  onchange="filterTable()"
+                >
+                  <option value="">All Status</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Request ID</th>
+                    <th>Email</th>
+                    <th>Department</th>
+                    <th>Request Type</th>
+                    <th>Attachment</th>
+                    <th>Status</th>
+                    <th class="text-right">Action</th>
+                    <th>Current Stage</th>
+                  </tr>
+                </thead>
+
+                <tbody id="requests-table-body">
+                  {% if recent_requests %} {% for req in recent_requests %}
+                  <tr
+                    class="request-row"
+                    data-status="{{ (req.status_for_me or '')|upper|trim }}"
+                  >
+                    <td>REQ#{{ req.request_id }}</td>
+                    <td>
+                      <div class="user-info-cell">
+                        <span class="user-email">{{ req.email }}</span>
+                      </div>
+                    </td>
+                    <td>{{ req.dept_name }}</td>
+                    <td><span class="type-badge">{{ req.type_name }}</span></td>
+
+                    <td>
+                      {% if req.filename %}
+                      <a
+                        href="/download_attachment/{{ req.request_id }}"
+                        target="_blank"
+                        class="file-link"
+                      >
+                        <i class="fa-solid fa-paperclip"></i> {{ req.filename }}
+                      </a>
+                      {% else %}
+                      <span class="text-muted">No file</span>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      <span
+                        class="status-badge status-{{ (req.status_for_me or '')|lower }}"
+                      >
+                        {{ req.status_for_me }}
+                      </span>
+                    </td>
+
+                    <td class="text-right">
+                      {% if req.can_act == 1 %}
+                      <div class="action-group">
+                        <button
+                          class="btn-icon btn-approve"
+                          title="Approve"
+                          onclick="openApproveModal('{{ req.request_id }}')"
+                        >
+                          <i class="fa-solid fa-check"></i>
+                        </button>
+
+                        <button
+                          class="btn-icon btn-reject"
+                          title="Reject"
+                          onclick="openRejectModal('{{ req.request_id }}')"
+                        >
+                          <i class="fa-solid fa-xmark"></i>
+                        </button>
+
+                        <button
+                          class="btn-icon"
+                          title="Annotate PDF"
+                          onclick="window.open('/annotate/{{ req.request_id }}','_blank')"
+                        >
+                          <i class="fa-solid fa-pen"></i>
+                        </button>
+                      </div>
+
+                      {% elif req.status_name == 'APPROVED' and
+                      req.stage_position_id is none %}
+                      <div class="action-group">
+                        <button
+                          class="btn-icon"
+                          title="CC"
+                          onclick="openCCModal('{{ req.request_id }}')"
+                        >
+                          <i class="fa-regular fa-envelope"></i>
+                        </button>
+                      </div>
+                      {% else %}
+                      <span class="text-muted">-</span>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if req.status_name == 'PENDING' %}
+                      <span class="role-badge"
+                        >{{ req.stage_position_name or '—' }}</span
+                      >
+                      {% else %}
+                      <span class="text-muted"
+                        >{{ req.stage_position_name or 'Completed' }}</span
+                      >
+                      {% endif %} {% set pos_name = (session.get('position') or '')|lower %}
+                      {% if session.get('role') == 'AssistantAdmin' and 'purchasing' in pos_name %}
+                        <button
+                          class="btn-icon"
+                          title="Edit Workflow"
+                          onclick="openWorkflowModal('{{ req.request_id }}')"
+                          style="margin-left:8px;"
+                        >
+                          <i class="fa-solid fa-route"></i>
+                        </button>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %} {% else %}
+                  <tr>
+                    <td
+                      colspan="8"
+                      style="text-align: center; color: #6b7280; padding: 20px"
+                    >
+                      No requests found.
+                    </td>
+                  </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SIGN + NOTE MODAL -->
+      <div id="annotateModal" class="modal-overlay" style="display: none">
+        <div
+          class="modal-content"
+          style="
+            background: #fff;
+            padding: 1.6rem;
+            border-radius: 12px;
+            width: 560px;
+            max-width: calc(100% - 24px);
+          "
+        >
+          <div
+            style="
+              display: flex;
+              align-items: flex-start;
+              justify-content: space-between;
+              gap: 12px;
+            "
+          >
+            <div>
+              <h3 style="margin: 0 0 0.25rem">Add Signature / Note</h3>
+              <p class="text-muted" style="margin: 0">
+                This will be saved to the system and shown on the PDF next time.
+              </p>
+            </div>
+            <button
+              type="button"
+              onclick="closeAnnotateModal()"
+              style="
+                border: none;
+                background: transparent;
+                font-size: 18px;
+                cursor: pointer;
+                line-height: 1;
+              "
+            >
+              ✕
+            </button>
+          </div>
+
+          <hr
+            style="margin: 14px 0; border: 0; border-top: 1px solid #e5e7eb"
+          />
+
+          <input type="hidden" id="ann_request_id" />
+
+          <div class="form-group" style="margin-bottom: 12px">
+            <label class="form-label">Save as</label>
+            <select id="ann_who" class="form-control" style="width: 100%">
+              <option value="reviewer">Reviewer</option>
+              <option value="approver">Approver</option>
+            </select>
+            <small class="text-muted"
+              >Choose who you are for this signature.</small
+            >
+          </div>
+
+          <!-- Note -->
+          <div class="form-group" style="margin-bottom: 12px">
+            <label class="form-label">Note / Remarks (optional)</label>
+            <textarea
+              id="ann_note"
+              class="form-control"
+              rows="3"
+              style="width: 100%"
+              placeholder="Type note..."
+            ></textarea>
+          </div>
+
+          <!-- Signature -->
+          <div class="form-group" style="margin-bottom: 10px">
+            <label class="form-label">Signature</label>
+            <div
+              style="
+                border: 1px solid #e5e7eb;
+                border-radius: 10px;
+                padding: 10px;
+              "
+            >
+              <canvas
+                id="ann_canvas"
+                width="520"
+                height="170"
+                style="
+                  width: 100%;
+                  height: 170px;
+                  display: block;
+                  background: #fff;
+                  border-radius: 8px;
+                "
+              ></canvas>
+            </div>
+            <small class="text-muted"
+              >Draw your signature (mouse or touch).</small
+            >
+          </div>
+
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              justify-content: flex-end;
+              margin-top: 12px;
+            "
+          >
+            <button type="button" class="btn-secondary" onclick="clearAnnSig()">
+              Clear
+            </button>
+            <button
+              type="button"
+              class="btn-primary"
+              onclick="saveAnnotation()"
+            >
+              Save & View PDF
+            </button>
+          </div>
+        </div>
+      </div>
+      <!-- WORKFLOW EDIT MODAL -->
+      <div id="workflowModal" class="modal-overlay" style="display: none">
+        <div
+          class="modal-content"
+          style="
+            background: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 720px;
+            max-width: calc(100% - 24px);
+          "
+        >
+          <div
+            style="
+              display: flex;
+              align-items: flex-start;
+              justify-content: space-between;
+              gap: 12px;
+            "
+          >
+            <div>
+              <h3 style="margin: 0 0 0.35rem">Edit Workflow</h3>
+              <p style="margin: 0; color: #6b7280; font-size: 13px">
+                Change reviewers/approvers for this request (per-request
+                override).
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onclick="closeWorkflowModal()"
+              style="
+                border: none;
+                background: transparent;
+                font-size: 18px;
+                cursor: pointer;
+                line-height: 1;
+              "
+            >
+              ✕
+            </button>
+          </div>
+
+          <hr
+            style="margin: 14px 0; border: 0; border-top: 1px solid #e5e7eb"
+          />
+
+          <input type="hidden" id="wf_request_id" />
+
+          <div
+            class="form-grid"
+            style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px"
+          >
+            <div class="form-group" style="grid-column: span 2">
+              <label class="form-label"
+                >Current Stage (who should act next)</label
+              >
+              <select
+                id="wf_stage_position_id"
+                class="form-control"
+                style="width: 100%"
+              >
+                <option value="">— Completed (no next stage) —</option>
+                {% for pos in positions %}
+                <option value="{{ pos.position_id }}">
+                  {{ pos.position_name }}
+                </option>
+                {% endfor %}
+              </select>
+              <small class="text-muted"
+                >If you set this, the request will wait for that position
+                next.</small
+              >
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Reviewers (multi-select)</label>
+              <select
+                id="wf_reviewer_ids"
+                class="form-control"
+                multiple
+                size="8"
+                style="width: 100%"
+              >
+                {% for pos in positions %}
+                <option value="{{ pos.position_id }}">
+                  {{ pos.position_name }}
+                </option>
+                {% endfor %}
+              </select>
+              <small class="text-muted">Hold Ctrl/Cmd to select many.</small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Approvers (multi-select)</label>
+              <select
+                id="wf_approver_ids"
+                class="form-control"
+                multiple
+                size="8"
+                style="width: 100%"
+              >
+                {% for pos in positions %}
+                <option value="{{ pos.position_id }}">
+                  {{ pos.position_name }}
+                </option>
+                {% endfor %}
+              </select>
+              <small class="text-muted">Hold Ctrl/Cmd to select many.</small>
+            </div>
+          </div>
+
+          <div
+            style="
+              display: flex;
+              justify-content: flex-end;
+              gap: 10px;
+              margin-top: 18px;
+            "
+          >
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="closeWorkflowModal()"
+            >
+              Cancel
+            </button>
+            <button type="button" class="btn-primary" onclick="saveWorkflow()">
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- REQUEST TYPE MANAGEMENT -->
+      {% if session['role'] == 'AssistantAdmin' %}
+      <div id="view-requests" class="view-section" style="display: none">
+        <header class="top-header">
+          <div class="header-title"><h2>Request Type Management</h2></div>
+          <div class="header-actions">
+            <div class="date-widget">
+              <i class="fa-regular fa-calendar" style="margin-right: 8px"></i>
+              <span class="current-date-display"></span>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-scroll custom-scrollbar">
+          <!-- ADD REQUEST TYPE -->
+          <div class="card-container form-section">
+            <div class="section-header"><h3>Add Request Type</h3></div>
+
+            <form
+              action="/add_request_type"
+              method="POST"
+              enctype="multipart/form-data"
+              class="form-grid"
+            ><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="form-group">
+                <label class="form-label">Type Name</label>
+                <input
+                  type="text"
+                  name="type_name"
+                  placeholder="e.g. PURCHASE REQUISITION"
+                  class="form-control"
+                  required
+                />
+              </div>
+
+              <div class="form-group" style="grid-column: span 2">
+                <label class="form-label">Reviewer Positions</label>
+                <p style="font-size: 12px; color: gray; margin-bottom: 5px">
+                  Select one or more reviewers (review happens before
+                  approvers). Hold Ctrl (Windows) or Cmd (Mac) to select
+                  multiple.
+                </p>
+                <select
+                  name="reviewer_position_ids[]"
+                  class="form-control"
+                  multiple
+                  size="6"
+                >
+                  {% for pos in positions %}
+                  <option value="{{ pos.position_id }}">
+                    {{ pos.position_name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="form-group" style="grid-column: span 2">
+                <label class="form-label">Approver Positions</label>
+                <p style="font-size: 12px; color: gray; margin-bottom: 5px">
+                  Select one or more approvers. Hold Ctrl (Windows) or Cmd (Mac)
+                  to select multiple.
+                </p>
+                <select
+                  name="approver_position_ids[]"
+                  class="form-control"
+                  multiple
+                  size="6"
+                  required
+                >
+                  {% for pos in positions %}
+                  <option value="{{ pos.position_id }}">
+                    {{ pos.position_name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="form-group" style="grid-column: span 2">
+                <label class="form-label">Template Mode</label>
+
+                <div
+                  style="
+                    display: flex;
+                    gap: 14px;
+                    align-items: center;
+                    margin-top: 8px;
+                    flex-wrap: wrap;
+                  "
+                >
+                  <label style="display: flex; gap: 8px; align-items: center">
+                    <input
+                      type="radio"
+                      name="template_mode"
+                      value="FILLABLE"
+                      checked
+                    />
+                    Fillable Form (user fills in system)
+                  </label>
+
+                  <label style="display: flex; gap: 8px; align-items: center">
+                    <input type="radio" name="template_mode" value="DOWNLOAD" />
+                    Download PDF Template
+                  </label>
+                </div>
+
+                <p class="text-muted" style="margin-top: 6px">
+                  Fillable mode shows Name, Date Needed, Department,
+                  Disbursement Type, Particulars + Amount, Total auto.
+                </p>
+              </div>
+
+              <div class="form-group" style="grid-column: span 2">
+                <label class="form-label"
+                  >Upload Template Form (Optional)</label
+                >
+                <p style="font-size: 12px; color: gray; margin-bottom: 5px">
+                  Upload a PDF file for users (and later for auto PDF output).
+                </p>
+                <input
+                  type="file"
+                  name="template_file"
+                  class="form-control"
+                  style="padding: 5px"
+                />
+              </div>
+
+              <div style="grid-column: span 2">
+                <button type="submit" class="btn-primary">
+                  Add Type & Template
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- EXISTING TYPES -->
+          <div class="card-container">
+            <div
+              class="table-header"
+              style="border-bottom: 1px solid var(--border-color)"
+            >
+              <div class="section-title"><h3>Existing Request Types</h3></div>
+            </div>
+
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Type Name</th>
+                    <th>Reviewers</th>
+                    <th>Approvers</th>
+                    <th class="text-right">Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {% if existing_types %} {% for type in existing_types %}
+                  <tr>
+                    <td>#{{ type.request_type_id }}</td>
+                    <td>{{ type.type_name }}</td>
+
+                    <td>
+                      <span class="role-badge">
+                        {{ type.reviewer_names if type.reviewer_names else
+                        'None' }}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span class="role-badge">
+                        {{ type.approver_names if type.approver_names else
+                        'None' }}
+                      </span>
+                    </td>
+
+                    <td class="text-right">
+                      <div class="action-group">
+                        <button
+                          class="action-icon-btn"
+                          onclick="openEditModal('{{ type.request_type_id }}', '{{ type.type_name }}', '{{ type.reviewer_ids }}', '{{ type.approver_ids }}')"
+                          title="Edit"
+                        >
+                          <i class="fa-regular fa-pen-to-square"></i>
+                        </button>
+
+                        <button
+                          class="action-icon-btn icon-delete"
+                          onclick="confirmDelete('{{ type.request_type_id }}', '{{ type.type_name }}')"
+                          title="Delete"
+                        >
+                          <i class="fa-regular fa-trash-can"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %} {% else %}
+                  <tr>
+                    <td colspan="5" style="text-align: center; padding: 20px">
+                      No request types found.
+                    </td>
+                  </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- NOTIFICATIONS -->
+      <div id="view-notifications" class="view-section" style="display: none">
+        <header class="top-header">
+          <div class="header-title"><h2>Notifications</h2></div>
+          <div class="header-actions">
+            <div class="date-widget">
+              <i class="fa-regular fa-calendar" style="margin-right: 8px"></i>
+              <span class="current-date-display"></span>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-scroll custom-scrollbar">
+          <div class="card-container">
+            <div class="table-header">
+              <div class="section-title"><h3>All Activity</h3></div>
+              <a
+                href="#"
+                class="mark-read-link"
+                onclick="alert('Feature coming soon')"
+                >Mark all as read</a
+              >
+            </div>
+
+            <div class="notification-list" id="notifList">
+              <div style="text-align: center; color: #6b7280; padding: 20px">Loading...</div>
+            </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div id="view-settings" class="view-section" style="display: none">
+        <header class="top-header">
+          <div class="header-title"><h2>Settings</h2></div>
+          <div class="header-actions">
+            <div class="date-widget">
+              <i class="fa-regular fa-calendar" style="margin-right: 8px"></i>
+              <span class="current-date-display"></span>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-scroll custom-scrollbar">
+          <div class="settings-grid">
+            <div class="card">
+              <h2 class="card-title">
+                <i class="fa-regular fa-user"></i> Personal Information
+              </h2>
+
+              <div class="form-group-wrapper">
+                <div class="form-group">
+                  <label>Email</label>
+                  <input type="email" id="user-email" readonly />
+                </div>
+                <div class="form-group">
+                  <label>Department</label>
+                  <input type="text" id="user-dept-display" readonly />
+                </div>
+                <div class="form-group">
+                  <label>Position Role</label>
+                  <input type="text" id="user-pos-display" readonly />
+                </div>
+                <p class="text-muted text-sm mt-2">
+                  Information managed by IT department.
+                </p>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2 class="card-title">
+                <i class="fa-regular fa-bell"></i> Notification Preferences
+              </h2>
+              <p class="text-muted" style="margin-top: 8px">
+                Feature coming soon.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- MODALS -->
+
+    <!-- CC MODAL -->
+    <div id="ccModal" class="modal-overlay" style="display: none">
+      <div
+        class="modal-content"
+        style="
+          background: #fff;
+          padding: 2rem;
+          border-radius: 12px;
+          width: 420px;
+        "
+      >
+        <h3 style="margin-bottom: 1rem">Send CC Email</h3>
+
+        <input type="hidden" id="cc_request_id" />
+
+        <div class="form-group" style="margin-bottom: 1rem">
+          <label class="form-label">Send to (Admin/AssistantAdmin)</label>
+          <select
+            id="cc_to_emails"
+            class="form-control"
+            multiple
+            size="6"
+            style="width: 100%"
+          >
+            {% for em in cc_recipients %}
+            <option value="{{ em }}">{{ em }}</option>
+            {% endfor %}
+          </select>
+
+          <small class="text-muted">
+            Hold Ctrl (Windows) or hold tap/drag (mobile) to select multiple.
+          </small>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem">
+          <label class="form-label">Add more emails (optional)</label>
+          <input
+            type="text"
+            id="cc_manual_emails"
+            class="form-control"
+            style="width: 100%"
+            placeholder="Type emails separated by comma, space, or new line"
+          />
+          <small class="text-muted"
+            >Example: sample@gmail.com, sample@yahoo.com
+            sample@school.edu</small
+          >
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem">
+          <label class="form-label">Note (optional)</label>
+          <textarea
+            id="cc_note"
+            class="form-control"
+            rows="4"
+            style="width: 100%"
+            placeholder="Add a short note..."
+          ></textarea>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end">
+          <button type="button" class="btn-secondary" onclick="closeCCModal()">
+            Cancel
+          </button>
+          <button type="button" class="btn-primary" onclick="sendCC()">
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SYSTEM POPUP -->
+    <div
+      id="sysPopup"
+      class="modal-overlay"
+      style="display: none; z-index: 3000"
+    >
+      <div
+        class="modal-content"
+        style="
+          width: 420px;
+          max-width: calc(100% - 24px);
+          background: #fff;
+          border-radius: 14px;
+          padding: 18px 18px 14px;
+          box-shadow: 0 18px 55px rgba(0, 0, 0, 0.3);
+        "
+      >
+        <div
+          style="
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+          "
+        >
+          <div>
+            <div
+              id="sysPopupTitle"
+              style="font-weight: 700; font-size: 16px; margin-bottom: 6px"
+            >
+              Status
+            </div>
+            <div
+              id="sysPopupMsg"
+              style="color: #374151; font-size: 14px; line-height: 1.45"
+            >
+              ...
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onclick="closeSysPopup()"
+            title="Close"
+            style="
+              border: none;
+              background: transparent;
+              cursor: pointer;
+              font-size: 18px;
+              line-height: 1;
+            "
+          >
+            ✕
+          </button>
+        </div>
+
+        <div
+          style="
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 14px;
+          "
+        >
+          <button type="button" class="btn-primary" onclick="closeSysPopup()">
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- APPROVE MODAL -->
+    <div id="approveModal" class="modal-overlay" style="display: none">
+      <div
+        class="modal-content"
+        style="
+          background: #fff;
+          padding: 2rem;
+          border-radius: 12px;
+          width: 420px;
+        "
+      >
+        <h3 style="margin: 0 0 0.75rem">Approve Request</h3>
+        <p style="color: #6b7280; margin: 0 0 1rem">
+          Are you sure to approve
+          <strong>REQ#<span id="approve_reqid"></span></strong>?
+        </p>
+
+        <input type="hidden" id="approve_request_id" />
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="btn-secondary"
+            onclick="closeApproveModal()"
+          >
+            Cancel
+          </button>
+          <button type="button" class="btn-primary" onclick="confirmApprove()">
+            Yes, Approve
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- REJECT MODAL -->
+    <div id="rejectModal" class="modal-overlay" style="display: none">
+      <div
+        class="modal-content"
+        style="
+          background: #fff;
+          padding: 2rem;
+          border-radius: 12px;
+          width: 460px;
+        "
+      >
+        <h3 style="margin: 0 0 0.75rem">Reject Request</h3>
+        <p style="color: #6b7280; margin: 0 0 1rem">
+          Please enter a reason for rejecting
+          <strong>REQ#<span id="reject_reqid"></span></strong>.
+        </p>
+
+        <input type="hidden" id="reject_request_id" />
+
+        <div class="form-group" style="margin-bottom: 1rem">
+          <label class="form-label">Reason (required)</label>
+          <textarea
+            id="reject_reason"
+            class="form-control"
+            rows="4"
+            style="width: 100%"
+            placeholder="Type reason..."
+          ></textarea>
+          <small class="text-muted"
+            >This will be saved as the rejection message.</small
+          >
+        </div>
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="btn-secondary"
+            onclick="closeRejectModal()"
+          >
+            Cancel
+          </button>
+          <button type="button" class="btn-danger" onclick="confirmReject()">
+            Reject
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDIT REQUEST TYPE MODAL -->
+    <div id="editModal" class="modal-overlay" style="display: none">
+      <div
+        class="modal-content"
+        style="
+          background: white;
+          padding: 2rem;
+          border-radius: 12px;
+          width: 400px;
+        "
+      >
+        <h3 style="margin-bottom: 1.5rem">Edit Request Type</h3>
+
+        <form action="/edit_request_type" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="type_id" id="edit_type_id" />
+
+          <div class="form-group" style="margin-bottom: 1rem">
+            <label class="form-label">Request Name</label>
+            <input
+              type="text"
+              name="type_name"
+              id="edit_type_name"
+              class="form-control"
+              required
+              style="width: 100%"
+            />
+          </div>
+
+          {% if positions %}
+          <div class="form-group" style="margin-bottom: 1rem">
+            <label class="form-label">Reviewer Positions</label>
+            <p style="font-size: 12px; color: #6b7280; margin: 6px 0 8px">
+              Hold Ctrl/Cmd to select multiple.
+            </p>
+            <select
+              name="reviewer_position_ids[]"
+              id="edit_reviewer_ids"
+              class="form-control"
+              multiple
+              size="6"
+              style="width: 100%"
+            >
+              {% for pos in positions %}
+              <option value="{{ pos.position_id }}">
+                {{ pos.position_name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1.5rem">
+            <label class="form-label">Approver Positions</label>
+            <p style="font-size: 12px; color: #6b7280; margin: 6px 0 8px">
+              Hold Ctrl/Cmd to select multiple.
+            </p>
+            <select
+              name="approver_position_ids[]"
+              id="edit_approver_ids"
+              class="form-control"
+              multiple
+              size="6"
+              style="width: 100%"
+            >
+              {% for pos in positions %}
+              <option value="{{ pos.position_id }}">
+                {{ pos.position_name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          <div style="display: flex; gap: 10px; justify-content: flex-end">
+            <button
+              type="button"
+              onclick="closeEditModal()"
+              class="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn-primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script>
+    window.IS_PURCHASING =
+      {{ 1 if 'purchasing' in ((session.get('position') or '')|lower) else 0 }};
+  </script>
+    <script src="/static/admin.js"></script>
+  </body>
+</html>

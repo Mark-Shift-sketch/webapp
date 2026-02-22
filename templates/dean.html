@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dean Dashboard</title>
+
+    <link rel="stylesheet" href="/static/admin.css" />
+    <link rel="stylesheet" href="/static/user.css" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='fonts/css/all.min.css') }}"
+    />
+  </head>
+
+  <body>
+    <!--SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <i
+          class="fa-solid fa-user-tie"
+          style="color: white; font-size: 18px"
+        ></i>
+        <h1 class="logo-text">Dean Dashboard</h1>
+      </div>
+
+      <nav class="sidebar-nav custom-scrollbar">
+        <a
+          id="nav-dashboard"
+          class="nav-item active"
+          onclick="switchView('dashboard')"
+        >
+          <div class="nav-item-content">
+            <i class="fa-solid fa-border-all"></i>
+            <span>Dashboard</span>
+          </div>
+        </a>
+
+        <a
+          id="nav-notifications"
+          class="nav-item"
+          onclick="switchView('notifications')"
+        >
+          <div class="nav-item-content">
+            <i class="fa-solid fa-bell"></i>
+            <span>Notifications</span>
+          </div>
+        </a>
+
+        <a id="nav-settings" class="nav-item" onclick="switchView('settings')">
+          <div class="nav-item-content">
+            <i class="fa-solid fa-gear"></i>
+            <span>Settings</span>
+          </div>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div style="padding: 0 20px 10px 20px; color: #9ca3af; font-size: 12px">
+          Logged in as:<br />
+          <strong style="color: white">{{ session['role'] }}</strong><br />
+          <span style="color: #6b7280">{{ session['position'] }}</span>
+        </div>
+        <a href="/logout" class="logout-link">
+          <i
+            class="fa-solid fa-arrow-right-from-bracket"
+            style="margin-right: 12px"
+          ></i>
+          <span>Logout</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main  -->
+    <main class="main-content">
+      <!-- dashboard -->
+      <div id="view-dashboard" class="view-section">
+        <header class="top-header">
+          <div class="header-title">
+            <h2>Request Dashboard</h2>
+            <p>Welcome back, {{ session['email'] }}</p>
+          </div>
+          <div class="header-actions">
+            <div class="date-widget">
+              <i class="fa-regular fa-calendar" style="margin-right: 8px"></i>
+              <span class="current-date-display"></span>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-scroll custom-scrollbar">
+          <!-- Stats -->
+          <div class="stats-grid">
+            <div class="stat-card card-blue">
+              <div class="stat-header">
+                <div class="icon-box">
+                  <i class="fa-regular fa-calendar-check"></i>
+                </div>
+              </div>
+              <h3 class="stat-value">{{ approvals_today }}</h3>
+              <p class="stat-label">Approvals Today</p>
+            </div>
+
+            <div class="stat-card card-yellow">
+              <div class="stat-header">
+                <div class="icon-box"><i class="fa-regular fa-clock"></i></div>
+              </div>
+              <h3 class="stat-value">{{ pending_count }}</h3>
+              <p class="stat-label">Pending</p>
+            </div>
+
+            <div class="stat-card card-green">
+              <div class="stat-header">
+                <div class="icon-box"><i class="fa-solid fa-check"></i></div>
+              </div>
+              <h3 class="stat-value">{{ approved_count }}</h3>
+              <p class="stat-label">Approved</p>
+            </div>
+
+            <div class="stat-card card-red">
+              <div class="stat-header">
+                <div class="icon-box"><i class="fa-solid fa-xmark"></i></div>
+              </div>
+              <h3 class="stat-value">{{ rejected_count }}</h3>
+              <p class="stat-label">Rejected</p>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div class="card-container">
+            <div class="table-header">
+              <div class="table-title">
+                <h3>Requests</h3>
+                <span class="count-badge"> {{ r_requests|length }} </span>
+              </div>
+
+              <div class="table-actions">
+                <div class="search-box">
+                  <i class="fa-solid fa-search"></i>
+                  <input
+                    type="text"
+                    id="search-input"
+                    placeholder="Search..."
+                    class="search-input"
+                    oninput="filterTable()"
+                  />
+                </div>
+                <select
+                  id="status-filter"
+                  class="filter-select"
+                  onchange="filterTable()"
+                >
+                  <option value="">All Status</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Email</th>
+                    <th>Department</th>
+                    <th>Filename</th>
+                    <th>Request Type</th>
+                    <th>Status</th>
+                    <th class="text-right">Action</th>
+                  </tr>
+                </thead>
+
+                <tbody id="requests-table-body">
+                  {% for reqs in r_requests %}
+                  <tr
+                    class="request-row"
+                    data-status="{{ (reqs.status_for_me or reqs.status_name or '')|upper|trim }}"
+                  >
+                    <td>REQ#{{ reqs.request_id }}</td>
+                    <td>{{ reqs.email }}</td>
+                    <td>{{ reqs.dept_name }}</td>
+
+                    <td>
+                      {% if reqs.filename %}
+                      <a
+                        href="/download_attachment/{{ reqs.request_id }}"
+                        target="_blank"
+                        class="file-link"
+                      >
+                        <i class="fa-solid fa-paperclip"></i> {{ reqs.filename
+                        }}
+                      </a>
+                      {% else %}
+                      <span class="text-muted">No file</span>
+                      {% endif %}
+                    </td>
+
+                    <td>{{ reqs.type_name }}</td>
+
+                    <td>
+                      <span
+                        class="status-badge status-{{ (reqs.status_for_me or reqs.status_name)|lower }}"
+                      >
+                        {{ reqs.status_for_me or reqs.status_name }}
+                      </span>
+                    </td>
+
+                    <td class="text-right">
+                      {% if reqs.can_act == 1 %}
+                      <button
+                        class="btn-icon btn-approve"
+                        onclick="updateStatus('{{ reqs.request_id }}','approved')"
+                        title="Approve"
+                      >
+                        <i class="fa-solid fa-check"></i>
+                      </button>
+
+                      <button
+                        class="btn-icon btn-reject"
+                        onclick="rejectRequest('{{ reqs.request_id }}')"
+                        title="Reject"
+                      >
+                        <i class="fa-solid fa-xmark"></i>
+                      </button>
+
+                      <button
+                        class="btn-icon"
+                        title="Annotate PDF"
+                        onclick="window.open('/annotate/{{ reqs.request_id }}','_blank')"
+                      >
+                        <i class="fa-solid fa-pen"></i>
+                      </button>
+                      {% else %}
+                      <span class="text-muted">-</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notification -->
+      <div id="view-notifications" class="view-section" style="display: none">
+        <header class="top-header">
+          <div class="header-title">
+            <h2>Notifications</h2>
+          </div>
+        </header>
+
+        <div id="section-notifications" class="section hidden fade-in">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="text-xl font-bold">All Activity</h2>
+              <button class="btn-link" onclick="markAllRead()">
+                Mark all as read
+              </button>
+            </div>
+            <div id="notifications-list" class="mt-4"></div>
+          </div>
+        </div>
+
+        <div class="content-scroll custom-scrollbar">
+          <div class="card-container">
+            <div
+              id="notifList"
+              style="padding: 20px; color: #6b7280; text-align: center"
+            >
+              Loading...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div id="view-settings" class="view-section" style="display: none">
+        <header class="top-header">
+          <div class="header-title">
+            <h2>Settings</h2>
+            <p>Welcome back, {{ session['email'] }}</p>
+          </div>
+        </header>
+
+        <div class="content-scroll custom-scrollbar">
+          <div class="card-container" style="max-width: 700px; margin: 0 auto">
+            <div class="table-header">
+              <div
+                class="table-title"
+                style="display: flex; align-items: center; gap: 10px"
+              >
+                <i class="fa-regular fa-user"></i>
+                <h3 style="margin: 0">Personal Information</h3>
+              </div>
+            </div>
+
+            <div style="padding: 24px 20px">
+              <div style="display: flex; flex-direction: column; gap: 18px">
+                <div>
+                  <label class="form-label">Email</label>
+                  <input
+                    id="pi_email"
+                    class="form-control"
+                    readonly
+                    style="background: #f3f4f6; cursor: not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label class="form-label">Department</label>
+                  <input
+                    id="pi_dept"
+                    class="form-control"
+                    readonly
+                    style="background: #f3f4f6; cursor: not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label class="form-label">Position Role</label>
+                  <input
+                    id="pi_position"
+                    class="form-control"
+                    readonly
+                    style="background: #f3f4f6; cursor: not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div style="margin-top: 18px; font-size: 13px; color: #6b7280">
+                Information managed by IT department.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script src="/static/dean.js"></script>
+  </body>
+</html>

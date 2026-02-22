@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Dashboard</title>
+
+  <script src="/static/vendor/lucide.min.js"></script>
+  <link rel="stylesheet" href="/static/user.css">
+</head>
+
+<body>
+
+<div class="app-container">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <i data-lucide="user"></i>
+        <span>Employee Portal</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <ul>
+        <li>
+          <a onclick="showSection('dashboard')" id="nav-dashboard" class="active">
+            <i data-lucide="layout-dashboard"></i> Dashboard
+          </a>
+        </li>
+        <li>
+          <a onclick="showSection('notifications')" id="nav-notifications">
+            <i data-lucide="bell"></i> Notifications
+            <span id="notif-badge" style="display: none;">0</span>
+          </a>
+        </li>
+        <li>
+          <a onclick="showSection('settings')" id="nav-settings">
+            <i data-lucide="settings"></i> Settings
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button onclick="logout()">
+        <i data-lucide="log-out"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="mobile-header">
+    <div class="mobile-header-inner">
+      <div class="logo">
+        <i data-lucide="user"></i>
+        <span>Employee Portal</span>
+      </div>
+      <button onclick="toggleMobileMenu()" class="btn-link">
+        <i data-lucide="menu" style="color: var(--text);"></i>
+      </button>
+    </div>
+
+    <div id="mobile-menu" class="mobile-menu">
+      <a onclick="showSection('dashboard'); toggleMobileMenu();">Dashboard</a>
+      <a onclick="showSection('notifications'); toggleMobileMenu();">Notifications</a>
+      <a onclick="showSection('settings'); toggleMobileMenu();">Settings</a>
+      <a onclick="logout()" class="text-danger font-bold">Logout</a>
+    </div>
+  </div>
+
+  <main class="main-content">
+    <div class="top-bar">
+      <div class="page-info">
+        <h1 id="page-title">Dashboard</h1>
+        <p>Welcome back, <span id="user-display-name">User</span></p>
+      </div>
+      <div class="user-info">
+        <div class="current-date">
+          <i data-lucide="calendar"></i>
+          <span id="current-date"></span>
+        </div>
+        <div class="profile">
+          <img id="user-avatar" src="https://ui-avatars.com/api/?name=User&background=eff6ff&color=2563eb" alt="User">
+          <div class="profile-text">
+            <p id="profile-name">Loading...</p>
+            <p id="profile-dept">...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content-wrapper">
+
+      <div id="section-dashboard" class="section fade-in">
+        <div class="cards-grid">
+          <div class="card interactive" onclick="filterRequests('your')">
+            <div class="card-header"><div class="icon-wrapper icon-blue"><i data-lucide="file-text"></i></div></div>
+            <h3 id="stats-pending">0</h3>
+            <p>Pending Requests</p>
+          </div>
+
+          <div class="card interactive" onclick="filterRequests('rejected')">
+            <div class="card-header"><div class="icon-wrapper icon-red"><i data-lucide="x-circle"></i></div></div>
+            <h3 id="stats-rejected">0</h3>
+            <p>Rejected</p>
+          </div>
+
+          <div class="card interactive" onclick="filterRequests('approved')">
+            <div class="card-header"><div class="icon-wrapper icon-green"><i data-lucide="check-circle"></i></div></div>
+            <h3 id="stats-approved">0</h3>
+            <p>Approved</p>
+          </div>
+
+          <div class="card interactive" onclick="filterRequests('history')">
+            <div class="card-header"><div class="icon-wrapper icon-purple"><i data-lucide="clock"></i></div></div>
+            <h3 id="stats-total">0</h3>
+            <p>History</p>
+          </div>
+        </div>
+
+        <div class="subnav-tabs">
+          <button onclick="filterRequests('all')" id="tab-all" class="nav-tab active">All Requests</button>
+          <button onclick="filterRequests('your')" id="tab-your" class="nav-tab">Pending Requests</button>
+          <button onclick="filterRequests('rejected')" id="tab-rejected" class="nav-tab">Rejected</button>
+          <button onclick="filterRequests('approved')" id="tab-approved" class="nav-tab">Approved</button>
+        </div>
+
+        <div class="requests-table-wrapper">
+          <div class="table-controls">
+            <div class="table-title">
+              <h2 id="table-title">All Requests</h2>
+              <span id="request-count" class="badge badge-blue">0</span>
+            </div>
+            <div class="table-actions">
+              <input type="text" id="search-input" placeholder="Search requests..." onkeyup="searchRequests()">
+              <button onclick="createNewRequest()" class="btn btn-primary">
+                <i data-lucide="plus" class="icon-sm"></i> New Request
+              </button>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Req ID</th>
+                  <th>Type</th>
+                  <th>File</th>
+                  <th>Status</th>
+                  <th>Current Stage</th>
+                  <th id="rejection-header" class="hidden">Rejection Message</th>
+                  <th>Submitted On</th>
+                  <th class="text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="requests-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="section-notifications" class="section hidden fade-in">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="text-xl font-bold">All Activity</h2>
+            <button class="btn-link" onclick="markAllRead()">Mark all as read</button>
+          </div>
+          <div id="notifications-list" class="mt-4"></div>
+        </div>
+      </div>
+
+      <div id="section-settings" class="section hidden fade-in">
+        <div class="settings-grid">
+          <div class="card">
+            <h2 class="card-title"><i data-lucide="user"></i> Personal Information</h2>
+            <div class="form-group-wrapper">
+              <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="user-email" readonly>
+              </div>
+              <div class="form-group">
+                <label>Department</label>
+                <input type="text" id="user-dept-display" readonly>
+              </div>
+              <div class="form-group">
+                <label>Position Role</label>
+                <input type="text" id="user-pos-display" readonly>
+              </div>
+              <p class="text-muted text-sm mt-2">Information managed by IT department.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast">
+  <div id="toast-icon"></div>
+  <div>
+    <p id="toast-title" class="toast-title"></p>
+    <p id="toast-message" class="toast-message"></p>
+  </div>
+</div>
+
+<!-- CREATE REQUEST MODAL -->
+<div id="request-modal" class="modal">
+  <div class="modal-content">
+    <h3>Create New Request</h3>
+
+    <form id="new-request-form" action="/create_request" method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label>Request Type</label>
+        <select name="request_type_id" id="modal-req-type" required onchange="checkTemplate()">
+          <option value="" selected disabled>Select a type...</option>
+          {% for type in request_types %}
+          <option
+            value="{{ type.request_type_id }}"
+            data-has-template="{{ 'yes' if type.template_filename else 'no' }}"
+            data-template-mode="{{ (type.template_mode or '')|upper }}"
+          >
+            {{ type.type_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- TEMPLATE CONTROL BOX -->
+      <div id="templateSection" style="display:none; background:#f0f9ff; padding:10px; border-radius:6px; margin-bottom:15px; border:1px solid #bae6fd;">
+        <p style="margin:0; font-size:14px; color:#0369a1; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <i data-lucide="file-text"></i>
+          <span id="templateMsg">This request requires a form.</span>
+
+
+          <!-- DOWNLOAD BUTTON -->
+          <a id="btnDownloadTemplate" href="#" target="_blank" class="btn-submit" style="padding:8px 12px; display:none; text-decoration:none;">
+            Download Template
+          </a>
+
+          <span id="templateFilledBadge" style="display:none; font-weight:600;">✅ Form filled</span>
+        </p>
+      </div>
+
+      <!-- hidden inputs submitted to /create_request -->
+      <input type="hidden" name="template_data_json" id="template_data_json">
+      <input type="hidden" name="template_total" id="template_total">
+
+      <div class="form-group">
+        <label>Upload Document</label>
+        <input type="file" name="file" accept=".pdf">
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" onclick="closeRequestModal()" class="btn-cancel">Cancel</button>
+        <button type="submit" class="btn-submit">Submit Request</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- REJECTION MODAL -->
+<div id="rejection-modal" class="modal">
+  <div class="modal-content">
+    <h3>Rejection Details</h3>
+    <p id="rejection-message" class="value rejection-message"></p>
+    <div class="modal-actions">
+      <button onclick="closeRejectionModal()" class="btn-cancel">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEMPLATE FORM MODAL (FILLABLE) -->
+<div id="template-form-modal" class="modal">
+  <div class="modal-content" style="max-width: 900px;">
+    <h3>Request Form</h3>
+
+    <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:12px;">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="tf_name" placeholder="Enter name" class="form-control">
+      </div>
+
+      <div class="form-group">
+        <label>Date Needed</label>
+        <input type="date" id="tf_date_needed" class="form-control">
+      </div>
+
+      <div class="form-group">
+        <label>Requesting Department</label>
+        <input type="text" id="tf_dept" class="form-control" readonly>
+      </div>
+
+      <div class="form-group">
+        <label>Disbursement Type</label>
+        <select id="tf_disbursement" class="form-control">
+          <option value="">Select…</option>
+          <option value="payment">Payment</option>
+          <option value="reimbursement">Reimbursement</option>
+          <option value="cash-advance">Cash Advance</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center;">
+      <h4 style="margin:0;">Particulars</h4>
+      <button type="button" class="btn-submit" style="padding:8px 12px;" onclick="addParticularRow()">+ Add Row</button>
+    </div>
+
+    <div style="margin-top:10px; overflow:auto;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="border:1px solid #e5e7eb; padding:10px; background:#f9fafb;">Particulars</th>
+            <th style="border:1px solid #e5e7eb; padding:10px; background:#f9fafb; width:180px;">Amount</th>
+            <th style="border:1px solid #e5e7eb; padding:10px; background:#f9fafb; width:90px;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="tf_body"></tbody>
+        <tfoot>
+          <tr>
+            <td style="border:1px solid #e5e7eb; padding:10px; text-align:right; font-weight:700;">TOTAL</td>
+            <td style="border:1px solid #e5e7eb; padding:10px; font-weight:700;">
+              ₱ <span id="tf_total">0.00</span>
+            </td>
+            <td style="border:1px solid #e5e7eb; padding:10px;"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" onclick="closeTemplateForm()" class="btn-cancel">Cancel</button>
+      <button type="button" onclick="applyTemplateForm()" class="btn-submit">Use This Form</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+
+  const API_URL = '/api';
+  let userRequests = [];
+  let currentFilter = 'all';
+
+  document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+    updateDate();
+    fetchUserData();
+    refreshDashboard();
+    fetchNotifications();
+  });
+
+  async function refreshDashboard() {
+    await fetchRequests();
+    renderRequests(currentFilter);
+    updateStats();
+  }
+
+  function updateDate() {
+    document.getElementById('current-date').textContent =
+      new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  }
+
+document.querySelector('input[type="file"]').addEventListener("change", function(){
+    const maxSize = 20 * 1024 * 1024;
+    if(this.files[0].size > maxSize){
+        alert("File must be below 20MB");
+        this.value = "";
+    }
+});
+
+
+  async function fetchUserData() {
+    try {
+      const res = await fetch(`${API_URL}/user-profile`);
+      const data = await res.json();
+
+      document.getElementById('user-email').value = data.email || '';
+      document.getElementById('user-dept-display').value = data.dept_name || '';
+      document.getElementById('user-pos-display').value = data.position_name || '';
+
+      const name = data.email ? data.email.split('@')[0] : 'User';
+      document.getElementById('profile-name').textContent = name;
+      document.getElementById('profile-dept').textContent = data.dept_name || '...';
+      document.getElementById('user-display-name').textContent = name;
+    } catch (e) {
+      console.error("Database user fetch failed", e);
+    }
+  }
+
+  async function fetchRequests() {
+    try {
+      const res = await fetch(`${API_URL}/requests`);
+      userRequests = await res.json();
+    } catch (e) {
+      showToast('Error', 'Could not sync with database', 'danger');
+    }
+  }
+
+  function renderRequests(filter) {
+    const tbody = document.getElementById('requests-table-body');
+    tbody.innerHTML = '';
+
+    let filtered = userRequests;
+    if (filter === 'your') filtered = userRequests.filter(r => (r.status_name||'').toLowerCase() === 'pending');
+    else if (filter === 'rejected') filtered = userRequests.filter(r => (r.status_name||'').toLowerCase() === 'rejected');
+    else if (filter === 'approved') filtered = userRequests.filter(r => (r.status_name||'').toLowerCase() === 'approved');
+
+    document.getElementById('request-count').textContent = filtered.length;
+    document.getElementById('rejection-header').classList.toggle('hidden', filter !== 'rejected');
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No requests found.</td></tr>';
+      return;
+    }
+
+    filtered.forEach(req => {
+      const tr = document.createElement('tr');
+
+      const fileCell = req.filename
+        ? `<a href="/download_attachment/${req.request_id}" target="_blank" class="file-link">${req.filename}</a>`
+        : `<span class="text-muted">No file</span>`;
+
+      tr.innerHTML = `
+        <td>${req.request_id}</td>
+        <td class="font-medium">${req.type_name || '-'}</td>
+        <td>${fileCell}</td>
+        <td><span class="status-badge status-${(req.status_name || '').toLowerCase()}">${req.status_name || '-'}</span></td>
+        <td>${req.current_stage_label || '-'}</td>
+        ${filter === 'rejected' ? `<td>${req.rejection_message || '-'}</td>` : ''}
+        <td>${new Date(req.created_at).toLocaleDateString()}</td>
+        <td class="text-right">
+          ${ (req.status_name||'').toLowerCase() === 'rejected'
+            ? `<button onclick="viewRejection('${(req.rejection_message || '').replace(/'/g, "\\'")}')" class="btn-link">Details</button>`
+            : `<span class="text-muted">-</span>`
+          }
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function searchRequests() {
+    const query = document.getElementById('search-input').value.toLowerCase();
+    const tbody = document.getElementById('requests-table-body');
+    const rows = tbody.getElementsByTagName('tr');
+    for (let row of rows) {
+      const text = row.textContent.toLowerCase();
+      row.style.display = text.includes(query) ? '' : 'none';
+    }
+  }
+
+  function updateStats() {
+    document.getElementById('stats-total').textContent = userRequests.length;
+    document.getElementById('stats-pending').textContent = userRequests.filter(r => (r.status_name||'').toLowerCase() === 'pending').length;
+    document.getElementById('stats-approved').textContent = userRequests.filter(r => (r.status_name||'').toLowerCase() === 'approved').length;
+    document.getElementById('stats-rejected').textContent = userRequests.filter(r => (r.status_name||'').toLowerCase() === 'rejected').length;
+  }
+
+
+document.getElementById("new-request-form").addEventListener("submit", async function(e){
+  e.preventDefault();
+
+  const form = e.target;
+  const formData = new FormData(form);
+
+  try{
+    const res = await fetch(form.action,{
+      method:"POST",
+      body:formData,
+      headers: { "X-Requested-With": "fetch" } // important
+    });
+
+    // always safely parse
+    let data = null;
+    const ct = res.headers.get("content-type") || "";
+    if (ct.includes("application/json")) data = await res.json();
+
+    if(!res.ok || !data || data.success !== true){
+      const msg = (data && data.message) ? data.message : "System error occurred.";
+      showSystemStatus(msg);
+      return;
+    }
+
+    showSystemStatus("Request submitted successfully.");
+    closeRequestModal();
+    refreshDashboard();
+
+  }catch(err){
+    showSystemStatus("System error occurred.");
+  }
+});
+
+
+  //  CONNECTED TEMPLATE LOGIC
+  function checkTemplate() {
+    const select = document.getElementById('modal-req-type');
+    const option = select.options[select.selectedIndex];
+    const hasTemplate = option?.dataset?.hasTemplate === 'yes';
+    const mode = (option?.dataset?.templateMode || '').toUpperCase();
+
+    const section = document.getElementById('templateSection');
+    const btnFill = document.getElementById('btnFillForm');
+    const btnDownload = document.getElementById('btnDownloadTemplate');
+    const msg = document.getElementById('templateMsg');
+
+    // clear previous
+    document.getElementById('template_data_json').value = '';
+    document.getElementById('template_total').value = '';
+    const badge = document.getElementById('templateFilledBadge');
+    if (badge) badge.style.display = 'none';
+
+    if (!section) return;
+
+    if (!hasTemplate) {
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = 'block';
+
+    // show correct action
+    btnFill.style.display = (mode === 'FILLABLE') ? 'inline-flex' : 'none';
+    btnDownload.style.display = (mode === 'DOWNLOAD') ? 'inline-flex' : 'none';
+
+    if (mode === 'FILLABLE') {
+      msg.textContent = 'This request requires a form. Please fill it in the system.';
+    } else if (mode === 'DOWNLOAD') {
+      msg.textContent = 'This request requires a PDF template. Download and attach it.';
+      // ✅ You must create this endpoint in backend (see note below)
+      const typeId = option.value;
+      btnDownload.href = `/download_template/${typeId}`;
+    } else {
+      msg.textContent = 'This request has a template.';
+      btnFill.style.display = 'none';
+      btnDownload.style.display = 'none';
+    }
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function openTemplateForm() {
+    const m = document.getElementById('template-form-modal');
+    if (!m) return;
+
+    const deptText = document.getElementById('profile-dept')?.textContent || '';
+    document.getElementById('tf_dept').value = deptText.trim();
+
+    const body = document.getElementById('tf_body');
+    if (body && body.children.length === 0) addParticularRow();
+
+    m.classList.add('show');
+  }
+
+  function closeTemplateForm() {
+    document.getElementById('template-form-modal')?.classList.remove('show');
+  }
+
+  function addParticularRow() {
+    const tbody = document.getElementById('tf_body');
+    if (!tbody) return;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="border:1px solid #e5e7eb; padding:6px;">
+        <input type="text" class="tf_part form-control" placeholder="e.g. Transportation">
+      </td>
+      <td style="border:1px solid #e5e7eb; padding:6px;">
+        <input type="number" class="tf_amt form-control" min="0" step="0.01" value="0" oninput="calcTemplateTotal()">
+      </td>
+      <td style="border:1px solid #e5e7eb; padding:6px; text-align:center;">
+        <button type="button" class="btn-cancel" style="padding:6px 10px;" onclick="this.closest('tr').remove(); calcTemplateTotal();">Remove</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+    calcTemplateTotal();
+  }
+
+  function calcTemplateTotal() {
+    let total = 0;
+    document.querySelectorAll('.tf_amt').forEach(i => {
+      const v = parseFloat(i.value || '0');
+      total += isNaN(v) ? 0 : v;
+    });
+
+    document.getElementById('tf_total').textContent = total.toFixed(2);
+    document.getElementById('template_total').value = total.toFixed(2);
+  }
+
+  function applyTemplateForm() {
+    const data = {
+      name: document.getElementById('tf_name').value.trim(),
+      date_needed: document.getElementById('tf_date_needed').value,
+      requesting_department: document.getElementById('tf_dept').value.trim(),
+      disbursement_type: document.getElementById('tf_disbursement').value,
+      particulars: []
+    };
+
+    if (!data.name) return alert("Name is required.");
+    if (!data.date_needed) return alert("Date Needed is required.");
+    if (!data.disbursement_type) return alert("Disbursement Type is required.");
+
+    document.querySelectorAll('#tf_body tr').forEach(tr => {
+      const p = tr.querySelector('.tf_part')?.value?.trim() || '';
+      const a = parseFloat(tr.querySelector('.tf_amt')?.value || '0');
+      if (p) data.particulars.push({ particulars: p, amount: isNaN(a) ? 0 : a });
+    });
+
+    if (data.particulars.length === 0) return alert("Add at least 1 Particular item.");
+
+    document.getElementById('template_data_json').value = JSON.stringify(data);
+
+    const badge = document.getElementById('templateFilledBadge');
+    if (badge) badge.style.display = 'inline';
+
+    closeTemplateForm();
+  }
+
+  async function fetchNotifications() {
+    try {
+      const res = await fetch(`${API_URL}/user_notifications`);
+      const notifications = await res.json();
+      renderNotifications(notifications);
+    } catch (e) {
+      console.error("Failed to load notifications", e);
+    }
+  }
+
+  function renderNotifications(notifs) {
+    const list = document.getElementById('notifications-list');
+    const badge = document.getElementById('notif-badge');
+
+    list.innerHTML = '';
+
+    if (!notifs || notifs.length === 0) {
+      list.innerHTML = '<div class="empty-state"><p class="text-muted">No recent activity found.</p></div>';
+      badge.style.display = 'none';
+      return;
+    }
+
+    badge.textContent = notifs.length;
+    badge.style.display = 'flex';
+
+    notifs.forEach(n => {
+      const item = document.createElement('div');
+      item.className = `notification-item status-${n.type}`;
+      item.innerHTML = `
+        <div class="notif-icon-wrapper"><i data-lucide="${n.icon}"></i></div>
+        <div class="notif-content">
+          <div class="notif-header">
+            <span class="notif-title">${n.title}</span>
+            <span class="notif-time">${n.time}</span>
+          </div>
+          <p class="notif-message">${n.message}</p>
+        </div>
+      `;
+      list.appendChild(item);
+    });
+
+    lucide.createIcons();
+  }
+
+  function markAllRead() {
+    document.getElementById('notif-badge').style.display = 'none';
+    showToast('Success', 'Notifications marked as read', 'success');
+  }
+
+  function showSection(section) {
+    ['dashboard', 'notifications', 'settings'].forEach(s => {
+      document.getElementById(`section-${s}`).classList.add('hidden');
+    });
+    document.getElementById(`section-${section}`).classList.remove('hidden');
+
+    document.querySelectorAll('.sidebar-nav a').forEach(link => link.classList.remove('active'));
+    document.getElementById(`nav-${section}`).classList.add('active');
+
+    document.getElementById('page-title').textContent = section.charAt(0).toUpperCase() + section.slice(1);
+  }
+
+  function filterRequests(type) {
+    currentFilter = type;
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(`tab-${type}`)?.classList.add('active');
+    renderRequests(type);
+  }
+
+  function viewRejection(msg) {
+    document.getElementById('rejection-message').textContent = msg;
+    document.getElementById('rejection-modal').classList.add('show');
+  }
+
+  function closeRejectionModal() { document.getElementById('rejection-modal').classList.remove('show'); }
+  function createNewRequest() { document.getElementById('request-modal').classList.add('show'); }
+  function closeRequestModal() { document.getElementById('request-modal').classList.remove('show'); }
+
+  function showToast(title, message, type) {
+    const toast = document.getElementById('toast');
+    document.getElementById('toast-title').textContent = title;
+    document.getElementById('toast-message').textContent = message;
+    toast.className = `toast toast-${type} show`;
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('show'); }
+  function logout() { if (confirm('Logout?')) window.location.href = '/logout'; }
+
+
+function showSystemStatus(message){
+
+    const toast = document.getElementById("toast");
+
+    document.getElementById("toast-title").textContent = "System Status";
+    document.getElementById("toast-message").textContent = message;
+
+    toast.classList.add("show");
+
+    setTimeout(()=>{
+        toast.classList.remove("show");
+    },3000);
+}
+
+</script>
+</body>
+</html>

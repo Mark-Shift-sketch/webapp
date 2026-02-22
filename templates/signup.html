@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <title>Sign Up</title>
+    <link rel="stylesheet" href="/static/signup.css">
+    <link rel="stylesheet" href="/static/login.css">
+    <script src="/static/login.js"></script>
+</head>
+
+<body>
+
+<div class="container">
+    {% if message %}
+        <p class="em"> {{ message }}</p>
+    {% endif %}
+    <h1 class='signuplogo'>Sign Up</h1>
+
+    <form method="POST" action="/signup">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <input type="email" id="email" name="email" placeholder="Email" required>
+
+        <div class="icon">
+        <input type="password" id="pass1" name="pass" placeholder="Password" required>
+            <i id="eye1" class="TP" onclick="TTP('pass1', 'eye1')">
+                <img src="/static/eye.png" alt="show Password">
+            </i>
+        </div>
+
+        <div class="icon">
+            <input type="password" id="pass2" name="cpass" placeholder="Confirm Password" required>
+            <i id="eye2" class="TP" onclick="TTP('pass2', 'eye2')">
+                <img src="/static/eye.png" alt="show Password">
+            </i>
+        </div>
+        
+        <select class='dept' name="dept" id="dept" required>
+            <option value="">Select Department</option>
+            {% for d in departments %}
+                <option value="{{ d['dept_name'] }}">{{ d['dept_name'] }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="button" class="go" id="getOtpBtn">Get OTP</button>
+
+
+        <div class="overlay" id="overlay">
+            <div class="confirmation-modal">
+                <h2>Verification</h2>
+                <p>Enter 6-digit OTP sent to your email</p>
+
+                <div class="otpE">
+                    <input class="Eotp" maxlength="1">
+                    <input class="Eotp" maxlength="1">
+                    <input class="Eotp" maxlength="1">
+                    <input class="Eotp" maxlength="1">
+                    <input class="Eotp" maxlength="1">
+                    <input class="Eotp" maxlength="1">
+                </div>
+
+                <button type="button" id="verifyOtpBtn">Verify OTP</button>
+            </div>
+        </div>
+
+        <button class="signup" id="signupBtn" type="submit" disabled>
+            Sign Me Up
+        </button>
+
+        <div class="sign">
+                <p>Already have Account?
+                <a href="{{ url_for('login') }}" class="a">Log in</a>
+            </p>
+
+    </form>
+</div>
+
+<script>
+// ===============================
+// 1) Show/Hide password toggle
+// ===============================
+function TTP(fieldId, togleId) {
+  const field = document.getElementById(fieldId);
+  const toggle = document.getElementById(togleId)?.querySelector("img");
+  if (!field || !toggle) return;
+
+  if (field.type === "password") {
+    field.type = "text";
+    toggle.src = "/static/hide.png";
+    toggle.alt = "Hide Password";
+  } else {
+    field.type = "password";
+    toggle.src = "/static/eye.png";
+    toggle.alt = "Show Password";
+  }
+}
+
+// ===============================
+// 2) CSRF helper (Flask-WTF)
+// ===============================
+function getCsrfToken() {
+  const el = document.querySelector('meta[name="csrf-token"]');
+  return el ? el.getAttribute("content") : "";
+}
+
+// ===============================
+// 3) OTP UI helpers
+// ===============================
+function getOtpValue() {
+  let otp = "";
+  document.querySelectorAll(".Eotp").forEach((inp) => (otp += (inp.value || "").trim()));
+  return otp;
+}
+
+function setupOtpInputs() {
+  const inputs = Array.from(document.querySelectorAll(".Eotp"));
+  if (!inputs.length) return;
+
+  inputs.forEach((inp, idx) => {
+    // only 1 digit
+    inp.addEventListener("input", () => {
+      inp.value = (inp.value || "").replace(/\D/g, "").slice(0, 1);
+      if (inp.value && inputs[idx + 1]) inputs[idx + 1].focus();
+    });
+
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Backspace" && !inp.value && inputs[idx - 1]) {
+        inputs[idx - 1].focus();
+      }
+      if (e.key === "ArrowLeft" && inputs[idx - 1]) inputs[idx - 1].focus();
+      if (e.key === "ArrowRight" && inputs[idx + 1]) inputs[idx + 1].focus();
+      if (e.key === "Enter") document.getElementById("verifyOtpBtn")?.click();
+    });
+
+    // paste full OTP
+    inp.addEventListener("paste", (e) => {
+      const text = (e.clipboardData || window.clipboardData).getData("text") || "";
+      const digits = text.replace(/\D/g, "").slice(0, inputs.length);
+      if (!digits) return;
+      e.preventDefault();
+      digits.split("").forEach((d, i) => {
+        if (inputs[i]) inputs[i].value = d;
+      });
+      const last = inputs[Math.min(digits.length, inputs.length) - 1];
+      if (last) last.focus();
+    });
+  });
+}
+
+// ===============================
+// 4) Main OTP logic
+// ===============================
+document.addEventListener("DOMContentLoaded", () => {
+  const getOtpBtn = document.getElementById("getOtpBtn");
+  const verifyOtpBtn = document.getElementById("verifyOtpBtn");
+  const overlay = document.getElementById("overlay");
+  const signupBtn = document.getElementById("signupBtn");
+  const emailEl = document.getElementById("email");
+
+  setupOtpInputs();
+
+  function showOverlay() {
+    if (!overlay) return;
+    overlay.style.display = "flex";
+    // focus first OTP box
+    const first = document.querySelector(".Eotp");
+    if (first) first.focus();
+  }
+
+  function hideOverlay() {
+    if (!overlay) return;
+    overlay.style.display = "none";
+  }
+
+  // Optional: click outside modal to close (remove if you don't want it)
+  if (overlay) {
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) hideOverlay();
+    });
+  }
+
+  // -------------------------------
+  // GET OTP
+  // -------------------------------
+  if (getOtpBtn) {
+    getOtpBtn.addEventListener("click", async () => {
+      const email = (emailEl?.value || "").trim();
+      if (!email) return alert("Enter email first");
+
+      try {
+        getOtpBtn.disabled = true;
+
+        const res = await fetch("/send-otp", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": getCsrfToken(),
+          },
+          body: new URLSearchParams({ email }),
+        });
+
+        const msg = await res.text();
+
+        // If CSRF fails or other bad request, you'll usually get 400
+        if (!res.ok) {
+          alert(msg || `Request failed (${res.status})`);
+          return;
+        }
+
+        alert(msg);
+
+        // open modal if OTP sent
+        if (
+          msg.toLowerCase().includes("otp sent") ||
+          msg.toLowerCase().includes("success")
+        ) {
+          showOverlay();
+        }
+      } catch (err) {
+        alert("Network error: " + err);
+      } finally {
+        getOtpBtn.disabled = false;
+      }
+    });
+  }
+
+  // -------------------------------
+  // VERIFY OTP
+  // -------------------------------
+  if (verifyOtpBtn) {
+    verifyOtpBtn.addEventListener("click", async () => {
+      const email = (emailEl?.value || "").trim();
+      const otp = getOtpValue();
+
+      if (!email) return alert("Enter email first");
+      if (otp.length !== 6) return alert("Enter 6-digit OTP");
+
+      try {
+        verifyOtpBtn.disabled = true;
+
+        const res = await fetch("/verify", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": getCsrfToken(),
+          },
+          body: new URLSearchParams({ email, otp }),
+        });
+
+        const msg = await res.text();
+
+        if (!res.ok) {
+          alert(msg || `Verify failed (${res.status})`);
+          return;
+        }
+
+        alert(msg);
+
+        if (msg.toLowerCase().includes("verified")) {
+          hideOverlay();
+          if (signupBtn) signupBtn.disabled = false;
+        }
+      } catch (err) {
+        alert("Network error: " + err);
+      } finally {
+        verifyOtpBtn.disabled = false;
+      }
+    });
+  }
+});
+</script>
+
+</body>
+</html>

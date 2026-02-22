@@ -1,0 +1,612 @@
+// admin.js
+
+// =====================
+// CSRF helpers (Flask-WTF)
+// =====================
+function getCsrfToken() {
+  // From: <meta name="csrf-token" content="{{ csrf_token() }}">
+  const el = document.querySelector('meta[name="csrf-token"]');
+  return el ? el.getAttribute("content") : "";
+}
+
+function withCsrfHeaders(headers = {}) {
+  const token = getCsrfToken();
+  // Flask-WTF accepts X-CSRFToken / X-CSRF-Token
+  return token ? { ...headers, "X-CSRFToken": token } : headers;
+}
+
+// Wrapper for fetch that always includes CSRF header + cookies
+function csrfFetch(url, options = {}) {
+  const opts = { ...options };
+  opts.method = (opts.method || "GET").toUpperCase();
+  opts.headers = withCsrfHeaders(opts.headers || {});
+  // ensure session cookie is sent
+  opts.credentials = opts.credentials || "same-origin";
+  return fetch(url, opts);
+}
+
+// =====================
+// Date display
+// =====================
+window.addEventListener("load", () => {
+  const dateOptions = {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  };
+  const today = new Date().toLocaleDateString("en-US", dateOptions);
+
+  document
+    .querySelectorAll(".current-date-display")
+    .forEach((el) => (el.innerText = today));
+});
+
+// =====================
+// Navigation / Tabs
+// =====================
+function switchView(viewName, pushUrl = true) {
+  document
+    .querySelectorAll(".view-section")
+    .forEach((el) => (el.style.display = "none"));
+
+  document
+    .querySelectorAll(".nav-item")
+    .forEach((el) => el.classList.remove("active"));
+
+  const viewEl = document.getElementById(`view-${viewName}`);
+  const navEl = document.getElementById(`nav-${viewName}`);
+
+  if (viewEl) viewEl.style.display = "flex";
+  if (navEl) navEl.classList.add("active");
+
+  localStorage.setItem("admin_current_view", viewName);
+
+  if (pushUrl) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", viewName);
+    window.history.replaceState({}, "", url.toString());
+  }
+
+  if (viewName === "notifications") loadNotifications();
+  if (viewName === "settings") loadProfile();
+}
+
+window.addEventListener("load", () => {
+  const url = new URL(window.location.href);
+  const viewFromUrl = url.searchParams.get("view");
+  const viewFromStorage = localStorage.getItem("admin_current_view");
+  const view = viewFromUrl || viewFromStorage || "dashboard";
+  switchView(view, false);
+});
+
+// =====================
+// Table filtering
+// =====================
+function filterTable() {
+  const q = (document.getElementById("search-input")?.value || "")
+    .toLowerCase()
+    .trim();
+
+  const status = (document.getElementById("status-filter")?.value || "")
+    .toUpperCase()
+    .trim();
+
+  const tbody = document.getElementById("requests-table-body");
+  if (!tbody) return;
+
+  const rows = tbody.querySelectorAll("tr.request-row");
+  let visible = 0;
+
+  rows.forEach((row) => {
+    const rowText = (row.innerText || "").toLowerCase();
+    const rowStatus = ((row.dataset.status || "") + "").toUpperCase().trim();
+
+    const matchQ = !q || rowText.includes(q);
+    const matchS = !status || rowStatus === status;
+
+    const show = matchQ && matchS;
+    row.style.display = show ? "" : "none";
+    if (show) visible++;
+  });
+
+  const badge = document.getElementById("table-count-badge");
+  if (badge) badge.textContent = String(visible);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  filterTable();
+  const s = document.getElementById("search-input");
+  const f = document.getElementById("status-filter");
+  if (s) s.addEventListener("input", filterTable);
+  if (f) f.addEventListener("change", filterTable);
+});
+
+// =====================
+// System Popup
+// =====================
+let __reloadAfterPopup = false;
+
+function openSysPopup(title, msg, reloadAfterOk = false) {
+  const modal = document.getElementById("sysPopup");
+  const t = document.getElementById("sysPopupTitle");
+  const m = document.getElementById("sysPopupMsg");
+
+  if (!modal || !t || !m) {
+    alert((title ? title + "\n" : "") + (msg || ""));
+    if (reloadAfterOk) window.location.reload();
+    return;
+  }
+
+  __reloadAfterPopup = !!reloadAfterOk;
+  t.innerText = title || "Status";
+  m.innerText = msg || "";
+  modal.style.display = "flex";
+}
+
+function closeSysPopup() {
+  const modal = document.getElementById("sysPopup");
+  if (modal) modal.style.display = "none";
+
+  if (__reloadAfterPopup) {
+    __reloadAfterPopup = false;
+    window.location.reload();
+  }
+}
+
+// =====================
+// Approve / Reject API
+// =====================
+async function updateStatus(requestId, status, message = "") {
+  try {
+    const response = await csrfFetch(`/api/request/${requestId}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, message }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      openSysPopup("Error", result.error || "Failed to update status", false);
+      return;
+    }
+
+    const rid = `REQ#${requestId}`;
+
+    if ((status || "").toLowerCase() === "approved") {
+      const backendMsg = result.message ? ` (${result.message})` : "";
+      openSysPopup(
+        "Approved",
+        `Request ${rid} has been approved. It moved to next approver.${backendMsg}`,
+        true
+      );
+      return;
+    }
+
+    if ((status || "").toLowerCase() === "rejected") {
+      openSysPopup("Rejected", `Request ${rid} has been rejected.`, true);
+      return;
+    }
+
+    openSysPopup("Updated", result.message || "Updated!", true);
+  } catch (err) {
+    console.error(err);
+    openSysPopup("Network Error", "Please check your internet and try again.", false);
+  }
+}
+
+// =====================
+// Approve Modal
+// =====================
+function openApproveModal(requestId) {
+  document.getElementById("approve_request_id").value = requestId;
+  document.getElementById("approve_reqid").innerText = requestId;
+  document.getElementById("approveModal").style.display = "flex";
+}
+
+function closeApproveModal() {
+  document.getElementById("approveModal").style.display = "none";
+  document.getElementById("approve_request_id").value = "";
+  document.getElementById("approve_reqid").innerText = "";
+}
+
+function confirmApprove() {
+  const id = document.getElementById("approve_request_id").value;
+  if (!id) return;
+  closeApproveModal();
+  updateStatus(id, "approved");
+}
+
+// =====================
+// Reject Modal
+// =====================
+function openRejectModal(requestId) {
+  document.getElementById("reject_request_id").value = requestId;
+  document.getElementById("reject_reqid").innerText = requestId;
+  document.getElementById("reject_reason").value = "";
+  document.getElementById("rejectModal").style.display = "flex";
+}
+
+function closeRejectModal() {
+  document.getElementById("rejectModal").style.display = "none";
+  document.getElementById("reject_request_id").value = "";
+  document.getElementById("reject_reqid").innerText = "";
+  document.getElementById("reject_reason").value = "";
+}
+
+function confirmReject() {
+  const id = document.getElementById("reject_request_id").value;
+  const reason = (document.getElementById("reject_reason").value || "").trim();
+
+  if (!id) return;
+
+  if (!reason) {
+    openSysPopup("Required", "Rejection reason is required.", false);
+    return;
+  }
+
+  closeRejectModal();
+  updateStatus(id, "rejected", reason);
+}
+
+// =====================
+// CC Helpers + Send
+// =====================
+function splitEmails(raw) {
+  return (raw || "")
+    .split(/[\s,;]+/g)
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function sendCC() {
+  const requestId = document.getElementById("cc_request_id")?.value;
+  if (!requestId) {
+    openSysPopup("Error", "Missing request id.", false);
+    return;
+  }
+
+  const selectEl = document.getElementById("cc_to_emails");
+  const selected = selectEl
+    ? Array.from(selectEl.selectedOptions).map((o) => (o.value || "").trim().toLowerCase())
+    : [];
+
+  const manualRaw = document.getElementById("cc_manual_emails")?.value || "";
+  const manual = splitEmails(manualRaw);
+
+  const merged = [...selected, ...manual].map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const unique = Array.from(new Set(merged));
+
+  if (unique.length === 0) {
+    openSysPopup("Required", "Please select or type at least one email.", false);
+    return;
+  }
+
+  const invalid = unique.filter((e) => !isValidEmail(e));
+  if (invalid.length > 0) {
+    openSysPopup("Invalid Emails", "Invalid email(s):\n" + invalid.join("\n"), false);
+    return;
+  }
+
+  const note = (document.getElementById("cc_note")?.value || "").trim();
+
+  try {
+    const res = await csrfFetch(`/api/request/${requestId}/cc`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to_emails: unique, note }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      openSysPopup("Error", data.error || "Failed to send CC email.", false);
+      return;
+    }
+
+    closeCCModal();
+
+    const manualEl = document.getElementById("cc_manual_emails");
+    if (manualEl) manualEl.value = "";
+    if (selectEl) Array.from(selectEl.options).forEach((opt) => (opt.selected = false));
+
+    openSysPopup("CC Sent", data.message || "CC email sent!", false);
+  } catch (e) {
+    openSysPopup("Network Error", "Network error sending CC.", false);
+  }
+}
+
+// =====================
+// CC Modal Controls
+// =====================
+function openCCModal(requestId) {
+  document.getElementById("cc_request_id").value = requestId;
+  document.getElementById("ccModal").style.display = "flex";
+}
+
+function closeCCModal() {
+  const modal = document.getElementById("ccModal");
+  if (modal) modal.style.display = "none";
+
+  const rid = document.getElementById("cc_request_id");
+  const note = document.getElementById("cc_note");
+  const sel = document.getElementById("cc_to_emails");
+
+  if (rid) rid.value = "";
+  if (note) note.value = "";
+  if (sel) Array.from(sel.options).forEach((o) => (o.selected = false));
+}
+
+// =====================
+// Edit Request Type Modal
+// =====================
+function openEditModal(typeId, typeName, reviewerIds, approverIds) {
+  document.getElementById("edit_type_id").value = typeId;
+  document.getElementById("edit_type_name").value = typeName;
+
+  const reviewerSelect = document.getElementById("edit_reviewer_ids");
+  const approverSelect = document.getElementById("edit_approver_ids");
+
+  const reviewerSet = new Set(
+    (reviewerIds || "").split(",").map((x) => x.trim()).filter(Boolean)
+  );
+
+  const approverSet = new Set(
+    (approverIds || "").split(",").map((x) => x.trim()).filter(Boolean)
+  );
+
+  if (reviewerSelect) {
+    Array.from(reviewerSelect.options).forEach((opt) => {
+      opt.selected = reviewerSet.has(opt.value);
+    });
+  }
+
+  if (approverSelect) {
+    Array.from(approverSelect.options).forEach((opt) => {
+      opt.selected = approverSet.has(opt.value);
+    });
+  }
+
+  document.getElementById("editModal").style.display = "flex";
+}
+
+function closeEditModal() {
+  document.getElementById("editModal").style.display = "none";
+}
+
+function confirmDelete(typeId, typeName) {
+  if (confirm(`Delete request type "${typeName}"?`)) {
+    window.location.href = `/delete_request_type/${typeId}`;
+  }
+}
+
+// =====================
+// Notifications (Admin)
+// =====================
+async function loadNotifications() {
+  const container =
+    document.getElementById("notifList") ||
+    document.querySelector("#view-notifications .notification-list");
+
+  if (!container) return;
+
+  container.innerHTML = `<div style="text-align:center;color:#6b7280;padding:20px">Loading...</div>`;
+
+  try {
+    const res = await fetch("/api/activity_logs", { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+
+    if (!data.success) {
+      container.innerHTML = `<div style="text-align:center;color:#ef4444;padding:20px">
+        ${data.message || "Unauthorized / Session expired."}
+      </div>`;
+      return;
+    }
+
+    if (!Array.isArray(data.data) || data.data.length === 0) {
+      container.innerHTML = `<div style="text-align:center;color:#6b7280;padding:20px">
+        No notifications yet.
+      </div>`;
+      return;
+    }
+
+    container.innerHTML = data.data
+      .map((n) => {
+        const when = n.created_at ? new Date(n.created_at).toLocaleString() : "";
+        return `
+          <div style="padding:14px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:10px;background:#fff;">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+              <div>
+                <div style="font-weight:600;">${n.title || "Activity"}</div>
+                <div style="color:#6b7280;margin-top:4px;">${n.description || ""}</div>
+              </div>
+              <small style="color:#9ca3af;white-space:nowrap;">${when}</small>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = `<div style="text-align:center;color:#ef4444;padding:20px">
+      Error loading notifications.
+    </div>`;
+  }
+}
+
+// =====================
+// Settings Profile
+// =====================
+async function loadProfile() {
+  try {
+    const res = await fetch("/api/user-profile");
+    const data = await res.json();
+
+    if (data && !data.error) {
+      const emailEl = document.getElementById("user-email");
+      const deptEl = document.getElementById("user-dept-display");
+      const posEl = document.getElementById("user-pos-display");
+
+      if (emailEl) emailEl.value = data.email || "";
+      if (deptEl) deptEl.value = data.dept_name || "";
+      if (posEl) posEl.value = data.position_name || "";
+    }
+  } catch (err) {
+    console.error("Profile load error:", err);
+  }
+}
+
+// =====================
+// Close modals on outside click & ESC
+// =====================
+document.addEventListener("click", (e) => {
+  const approveModal = document.getElementById("approveModal");
+  const rejectModal = document.getElementById("rejectModal");
+  const ccModal = document.getElementById("ccModal");
+  const editModal = document.getElementById("editModal");
+  const sysPopup = document.getElementById("sysPopup");
+  const workflowModal = document.getElementById("workflowModal");
+  const annotateModal = document.getElementById("annotateModal");
+
+  if (approveModal && e.target === approveModal) closeApproveModal();
+  if (rejectModal && e.target === rejectModal) closeRejectModal();
+  if (ccModal && e.target === ccModal) closeCCModal();
+  if (editModal && e.target === editModal) closeEditModal();
+  if (sysPopup && e.target === sysPopup) closeSysPopup();
+  if (workflowModal && e.target === workflowModal) closeWorkflowModal();
+  if (annotateModal && e.target === annotateModal) closeAnnotateModal();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+
+  const approveModal = document.getElementById("approveModal");
+  const rejectModal = document.getElementById("rejectModal");
+  const ccModal = document.getElementById("ccModal");
+  const editModal = document.getElementById("editModal");
+  const sysPopup = document.getElementById("sysPopup");
+  const workflowModal = document.getElementById("workflowModal");
+  const annotateModal = document.getElementById("annotateModal");
+
+  if (approveModal?.style.display === "flex") closeApproveModal();
+  if (rejectModal?.style.display === "flex") closeRejectModal();
+  if (ccModal?.style.display === "flex") closeCCModal();
+  if (editModal?.style.display === "flex") closeEditModal();
+  if (sysPopup?.style.display === "flex") closeSysPopup();
+  if (workflowModal?.style.display === "flex") closeWorkflowModal();
+  if (annotateModal?.style.display === "flex") closeAnnotateModal();
+});
+
+// =====================
+// Workflow Edit Modal
+// =====================
+function _getSelectedValues(selectEl) {
+  if (!selectEl) return [];
+  return Array.from(selectEl.selectedOptions)
+    .map((o) => (o.value || "").trim())
+    .filter(Boolean);
+}
+
+function _setSelectedValues(selectEl, values) {
+  if (!selectEl) return;
+  const set = new Set((values || []).map((v) => String(v)));
+  Array.from(selectEl.options).forEach((opt) => {
+    opt.selected = set.has(String(opt.value));
+  });
+}
+
+async function openWorkflowModal(requestId) {
+  const modal = document.getElementById("workflowModal");
+  const ridEl = document.getElementById("wf_request_id");
+  const stageEl = document.getElementById("wf_stage_position_id");
+  const revEl = document.getElementById("wf_reviewer_ids");
+  const appEl = document.getElementById("wf_approver_ids");
+
+  if (!modal || !ridEl || !stageEl || !revEl || !appEl) {
+    openSysPopup("Error", "Workflow modal elements not found.", false);
+    return;
+  }
+
+  ridEl.value = requestId;
+
+  stageEl.value = "";
+  _setSelectedValues(revEl, []);
+  _setSelectedValues(appEl, []);
+
+  modal.style.display = "flex";
+
+  try {
+    const res = await fetch(`/api/request/${requestId}/workflow`);
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      openSysPopup("Error", data.error || "Failed to load workflow.", false);
+      return;
+    }
+
+    stageEl.value = data.stage_position_id ? String(data.stage_position_id) : "";
+    _setSelectedValues(revEl, data.reviewer_ids || []);
+    _setSelectedValues(appEl, data.approver_ids || []);
+  } catch (e) {
+    console.error(e);
+    openSysPopup("Network Error", "Failed to load workflow.", false);
+  }
+}
+
+function closeWorkflowModal() {
+  const modal = document.getElementById("workflowModal");
+  if (modal) modal.style.display = "none";
+  const ridEl = document.getElementById("wf_request_id");
+  if (ridEl) ridEl.value = "";
+}
+
+async function saveWorkflow() {
+  const requestId = document.getElementById("wf_request_id")?.value;
+  const stageEl = document.getElementById("wf_stage_position_id");
+  const revEl = document.getElementById("wf_reviewer_ids");
+  const appEl = document.getElementById("wf_approver_ids");
+
+  if (!requestId) {
+    openSysPopup("Error", "Missing request id.", false);
+    return;
+  }
+
+  const stage_position_id = (stageEl?.value || "").trim() || null;
+  const reviewer_position_ids = _getSelectedValues(revEl).map(Number).filter(Boolean);
+  const approver_position_ids = _getSelectedValues(appEl).map(Number).filter(Boolean);
+
+  if (approver_position_ids.length === 0) {
+    openSysPopup("Required", "Please select at least one approver.", false);
+    return;
+  }
+
+  try {
+    const res = await csrfFetch(`/api/request/${requestId}/workflow`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        stage_position_id: stage_position_id ? Number(stage_position_id) : null,
+        reviewer_position_ids,
+        approver_position_ids,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      openSysPopup("Error", data.error || "Failed to save workflow.", false);
+      return;
+    }
+
+    closeWorkflowModal();
+    openSysPopup("Saved", data.message || "Workflow updated.", true);
+  } catch (e) {
+    console.error(e);
+    openSysPopup("Network Error", "Failed to save workflow.", false);
+  }
+}
