@@ -6,3 +6,5 @@ Flask-Login
 Flask-Bcrypt
 Flask-WTF
 flask-cors
+reportlab
+pypdf
