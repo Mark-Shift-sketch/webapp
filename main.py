@@ -32,7 +32,9 @@ from io import BytesIO
 from flask import send_file
 
 load_dotenv()
+from werkzeug.middleware.proxy_fix import ProxyFix
 
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -3219,4 +3221,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=int(os.environ.get("PORT", "5000")),
         debug=(os.environ.get("FLASK_DEBUG", "false").lower() == "true"),
+
     ) 
