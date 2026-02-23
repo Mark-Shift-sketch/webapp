@@ -30,15 +30,15 @@ import re
 import base64
 from io import BytesIO
 from flask import send_file
-
-load_dotenv()
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-logger = logging.getLogger(__name__)
+load_dotenv()
+
 
 app = Flask(__name__)
 
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+logger = logging.getLogger(__name__)
 
 # Security / environment
 
@@ -3223,3 +3223,4 @@ if __name__ == "__main__":
         debug=(os.environ.get("FLASK_DEBUG", "false").lower() == "true"),
 
     ) 
+
