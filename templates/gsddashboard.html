@@ -1,260 +1,21 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GSD Dashboard</title>
-    <link rel="stylesheet" href="/static/user.css" />
-    <link rel="stylesheet" href="/static/admin.css" />
+
+    <link rel="stylesheet" href="/static/user/user.css" />
+    <link rel="stylesheet" href="/static/admin/admin.css" />
+    <link rel="stylesheet" href="/static/gsd/gsd.css" />
     <script src="/static/vendor/lucide.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='fonts/css/all.min.css') }}">
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='fonts/css/all.min.css') }}"
+    />
+    <script src="/static/gsd/gsd.js"></script>
 
-
-    <!-- Inventory Quantity Color -->
-    <style>
-/* --- Shipment table: NORMAL TABLE look --- */
-#shipmentTable {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  font-size: 13px;
-}
-
-#shipmentTable thead th {
-  text-align: left;
-  font-weight: 600;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  padding: 10px;
-  white-space: nowrap;
-}
-
-#shipmentTable tbody td {
-  border: 1px solid #e5e7eb;
-  padding: 6px;
-  vertical-align: middle;
-}
-
-#shipmentTable tbody tr:hover {
-  background: #f9fafb;
-}
-#sendModal .table-wrapper {
-  overflow-x: auto;
-}
-
-/* Inputs inside table cells */
-#shipmentTable .tbl-in {
-  width: 100%;
-  height: 34px;
-  padding: 6px 8px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;   /* small radius = normal */
-  outline: none;
-  background: #fff;
-}
-
-#shipmentTable .tbl-in:focus {
-  border-color: #9ca3af;
-}
-
-/* Action cell button align */
-#shipmentTable td.text-right {
-  text-align: right;
-  white-space: nowrap;
-}
-      /* Modal overlay */
-.modal-overlay{
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.55);
-  z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
-}
-
-/* Full window modal */
-.modal-window{
-  width: min(1200px, 98vw);
-  height: min(760px, 92vh);
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.25);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.modal-topbar{
-  padding: 16px 18px;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.icon-close{
-  border: 0;
-  background: #f3f4f6;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-#sendForm{
-  padding: 16px 18px;
-  overflow: auto;
-}
-
-/* Form grid */
-.send-grid{
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-.send-grid .form-group label{
-  font-size: 12px;
-  color: #374151;
-  display: block;
-  margin-bottom: 6px;
-}
-.send-grid input, .send-grid select{
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  outline: none;
-}
-
-/* Items header row */
-.items-header{
-  margin-top: 16px;
-  display:flex;
-  align-items:center;
-  justify-content: space-between;
-}
-
-/* Modal footer */
-.modal-footer{
-  margin-top: 16px;
-  display:flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-/* Responsive */
-@media (max-width: 900px){
-  .send-grid{ grid-template-columns: 1fr; }
-}
-      .qty {
-        font-weight: 600;
-      }
-      .qty-low {
-        color: #dc2626; /* red */
-      }
-      .qty-ok {
-        color: #111827; /* black */
-      }
-
-
-      /* --- Send Copy modal layout --- */
-.sendcopy-top{
-  display:grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.sendcopy-top .form-group label,
-.sendcopy-grid .form-group label{
-  font-size: 12px;
-  color: #374151;
-  display:block;
-  margin-bottom: 6px;
-}
-
-.sendcopy-top input,
-.sendcopy-grid input{
-  width:100%;
-  padding:10px 12px;
-  border:1px solid #e5e7eb;
-  border-radius:10px;
-  outline:none;
-}
-
-.sendcopy-grid{
-  display:grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-@media (max-width: 900px){
-  .sendcopy-top{ grid-template-columns: 1fr; }
-  .sendcopy-grid{ grid-template-columns: 1fr; }
-}
-
-/* Tabs */
-.sc-tabs{
-  display:flex;
-  gap: 8px;
-  padding: 10px;
-  background:#f9fafb;
-  border:1px solid #e5e7eb;
-  border-radius:12px;
-  margin: 8px 0 12px;
-}
-
-.sc-tab{
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  padding: 8px 12px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 13px;
-}
-
-.sc-tab.active{
-  border-color:#9ca3af;
-  background:#f3f4f6;
-}
-
-/* Send Copy table - normal grid */
-#sendCopyTable{
-  width:100%;
-  border-collapse: collapse;
-  background:#fff;
-  font-size:13px;
-}
-
-#sendCopyTable thead th{
-  text-align:left;
-  font-weight:600;
-  background:#f9fafb;
-  border:1px solid #e5e7eb;
-  padding:10px;
-  white-space:nowrap;
-}
-
-#sendCopyTable tbody td{
-  border:1px solid #e5e7eb;
-  padding:6px;
-  vertical-align:middle;
-}
-
-#sendCopyTable .tbl-in{
-  width:100%;
-  height:34px;
-  padding:6px 8px;
-  border:1px solid #d1d5db;
-  border-radius:6px;
-  outline:none;
-  background:#fff;
-}
-    </style>
   </head>
 
   <body>
@@ -279,17 +40,33 @@
           </div>
         </a>
 
-        <a id="nav-inventory" class="nav-item" onclick="switchView('inventory')">
+        {% if session['role'] == "dev" %}
+        <a
+          id="nav-inventory"
+          class="nav-item"
+          onclick="switchView('inventory')"
+        >
           <div class="nav-item-content">
             <i class="fa-solid fa-boxes-stacked"></i>
             <span>Inventory</span>
           </div>
         </a>
+        {% endif %}
 
-        <a id="nav-inventory-management" class="nav-item" onclick="switchView('inventory-management')">
+        <!-- Inventory Management: visible for all, but only dev gets full feature -->
+        <a
+          id="nav-inventory-management"
+          class="nav-item"
+          onclick="switchView('inventory-management')"
+        >
           <div class="nav-item-content">
             <i class="fa-solid fa-boxes-stacked"></i>
             <span>Inventory Management</span>
+            {% if session['role'] != "dev" %}
+            <span style="margin-left: 8px; font-size: 11px; color: #9ca3af"
+              >Soon</span
+            >
+            {% endif %}
           </div>
         </a>
 
@@ -304,11 +81,7 @@
           </div>
         </a>
 
-        <a
-          id="nav-history"
-          class="nav-item"
-          onclick="switchView('history')"
-        >
+        <a id="nav-history" class="nav-item" onclick="switchView('history')">
           <div class="nav-item-content">
             <i data-lucide="clock"></i>
             <span>History</span>
@@ -404,7 +177,8 @@
           <div class="card-container">
             <div class="table-header">
               <div class="table-title">
-                {% if session['role'] in ['Admin','AssistantAdmin'] and session['dept'] == 'GSD' %}
+                {% if session['role'] in ['Admin','AssistantAdmin'] and
+                session['dept'] == 'GSD' %}
                 <h3>All System Requests</h3>
                 {% else %}
                 <h3>Requests Assigned to You</h3>
@@ -424,16 +198,20 @@
                     class="search-input"
                     oninput="filterTable()"
                   />
-
-                  </div>
-                    <select id="status-filter" class="filter-select" onchange="filterTable()">
-                      <option value="">All Status</option>
-                      <option value="PENDING">Pending</option>
-                      <option value="APPROVED">Approved</option>
-                      <option value="REJECTED">Rejected</option>
-                    </select>
                 </div>
+
+                <select
+                  id="status-filter"
+                  class="filter-select"
+                  onchange="filterTable()"
+                >
+                  <option value="">All Status</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                </select>
               </div>
+            </div>
 
             <div class="table-wrapper">
               <table>
@@ -450,68 +228,89 @@
                 </thead>
 
                 <tbody id="requests-table-body">
-                  {% if recent_requests %}
-                    {% for req in recent_requests %}
-                    <tr class="request-row" data-status="{{ (req.status_name or '')|upper }}">
+                  {% if recent_requests %} {% for req in recent_requests %}
+                  <tr
+                    class="request-row"
+                    data-status="{{ (req.status_name or '')|upper }}"
+                  >
+                    <td>REQ#{{ req.request_id }}</td>
 
-                      <td>REQ#{{ req.request_id }}</td>
-                      <td>
-                        <div class="user-info-cell">
-                          <span class="user-email">{{ req.email }}</span>
-                        </div>
-                      </td>
-                      <td>{{ req.dept_name }}</td>
-                      <td><span class="type-badge">{{ req.type_name }}</span></td>
-                      <td>
-                        {% if req.filename %}
-                        <a
-                          href="/download_attachment/{{ req.request_id }}"
-                          target="_blank"
-                          class="file-link"
+                    <td>
+                      <div class="user-info-cell">
+                        <span class="user-email">{{ req.email }}</span>
+                      </div>
+                    </td>
+
+                    <td>{{ req.dept_name }}</td>
+                    <td><span class="type-badge">{{ req.type_name }}</span></td>
+
+                    <td>
+                      {% if req.filename %}
+                      <a
+                        href="/download_attachment/{{ req.request_id }}"
+                        target="_blank"
+                        class="file-link"
+                      >
+                        <i class="fa-solid fa-paperclip"></i> {{ req.filename }}
+                      </a>
+                      {% else %}
+                      <span class="text-muted">No file</span>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      <span
+                        class="status-badge status-{{ req.status_name|lower }}"
+                      >
+                        {{ req.status_name }}
+                      </span>
+                    </td>
+
+                    <td class="text-right">
+                      {% if req.status_name == 'PENDING' %}
+                      <div class="action-group">
+                        <button
+                          class="btn-icon btn-approve"
+                          title="Approve"
+                          onclick="updateStatus('{{ req.request_id }}', 'approved')"
+                          type="button"
                         >
-                          <i class="fa-solid fa-paperclip"></i> {{ req.filename }}
-                        </a>
-                        {% else %}
-                        <span class="text-muted">No file</span>
-                        {% endif %}
-                      </td>
-                      <td>
-                        <span class="status-badge status-{{ req.status_name|lower }}">
-                          {{ req.status_name }}
-                        </span>
-                      </td>
-                      <td class="text-right">
-                        {% if req.status_name == 'PENDING' %}
-                        <div class="action-group">
-                          <button
-                            class="btn-icon btn-approve"
-                            title="Approve"
-                            onclick="updateStatus('{{ req.request_id }}', 'approved')"
-                          >
-                            <i class="fa-solid fa-check"></i>
-                          </button>
-                          <button
-                            class="btn-icon btn-reject"
-                            title="Reject"
-                            onclick="rejectRequest('{{ req.request_id }}')"
-                          >
-                            <i class="fa-solid fa-xmark"></i>
-                          </button>
-                          <button class="btn-icon" title="Annotate PDF" onclick="window.open('/annotate/{{ req.request_id }}','_blank')">
-                            <i class="fa-solid fa-pen"></i>
-                        </div>
-                        {% else %}
-                        <span class="text-muted">-</span>
-                        {% endif %}
-                      </td>
-                    </tr>
-                    {% endfor %}
-                  {% else %}
-                    <tr>
-                      <td colspan="7" style="text-align: center; color: #6b7280; padding: 20px">
-                        No requests found.
-                      </td>
-                    </tr>
+                          <i class="fa-solid fa-check"></i>
+                        </button>
+
+                        <button
+                          class="btn-icon btn-reject"
+                          title="Reject"
+                          onclick="rejectRequest('{{ req.request_id }}')"
+                          type="button"
+                        >
+                          <i class="fa-solid fa-xmark"></i>
+                        </button>
+
+                        <!-- FIXED: missing closing button -->
+                        <button
+                          class="btn-icon"
+                          title="Annotate PDF"
+                          onclick="window.open('/annotate/{{ req.request_id }}','_blank')"
+                          type="button"
+                        >
+                          <i class="fa-solid fa-pen"></i>
+                        </button>
+                      </div>
+                      {% else %}
+                      <span class="text-muted">-</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %} {% else %}
+                  <tr>
+                    <td
+                      colspan="7"
+                      style="text-align: center; color: #6b7280; padding: 20px"
+                    >
+                      No requests found.
+                    </td>
+                  </tr>
                   {% endif %}
                 </tbody>
               </table>
@@ -520,7 +319,8 @@
         </div>
       </div>
 
-      <!--INVENTORY -->
+      <!-- INVENTORY (dev only) -->
+      {% if session['role'] == "dev" %}
       <div id="view-inventory" class="view-section" style="display: none">
         <header class="top-header">
           <div class="header-title">
@@ -546,9 +346,9 @@
             <div class="table-header">
               <div class="table-title">
                 <h3>Products</h3>
-                <span class="count-badge">
-                  {{ inventory_items|length if inventory_items else 0 }}
-                </span>
+                <span class="count-badge"
+                  >{{ inventory_items|length if inventory_items else 0 }}</span
+                >
               </div>
 
               <div class="table-actions">
@@ -577,42 +377,48 @@
                 </thead>
 
                 <tbody id="inventory-body">
-                  {% if inventory_items %}
-                    {% for item in inventory_items %}
-                    <tr class="inv-row" data-name="{{ item.product_name|lower }}">
-                      <td>#{{ item.product_id }}</td>
-                      <td>{{ item.product_name }}</td>
-                      <td>
-                        <span class="qty {{ 'qty-low' if item.quantity <= 20 else 'qty-ok' }}">
-                          {{ item.quantity }}
-                        </span>
-                      </td>
-                      <td class="text-right">
-                        <div class="action-group">
-                          <button
-                            class="action-icon-btn"
-                            title="Edit"
-                            onclick="openInvModal('{{ item.product_id }}','{{ item.product_name|e }}','{{ item.quantity }}')"
-                          >
-                            <i class="fa-regular fa-pen-to-square"></i>
-                          </button>
-                          <button
-                            class="action-icon-btn icon-delete"
-                            title="Delete"
-                            onclick="deleteProduct('{{ item.product_id }}')"
-                          >
-                            <i class="fa-regular fa-trash-can"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    {% endfor %}
-                  {% else %}
-                    <tr>
-                      <td colspan="4" style="text-align:center; color:#6b7280; padding:20px;">
-                        No products yet.
-                      </td>
-                    </tr>
+                  {% if inventory_items %} {% for item in inventory_items %}
+                  <tr class="inv-row" data-name="{{ item.product_name|lower }}">
+                    <td>#{{ item.product_id }}</td>
+                    <td>{{ item.product_name }}</td>
+                    <td>
+                      <span
+                        class="qty {{ 'qty-low' if item.quantity <= 20 else 'qty-ok' }}"
+                      >
+                        {{ item.quantity }}
+                      </span>
+                    </td>
+                    <td class="text-right">
+                      <div class="action-group">
+                        <button
+                          class="action-icon-btn"
+                          title="Edit"
+                          onclick="openInvModal('{{ item.product_id }}','{{ item.product_name|e }}','{{ item.quantity }}')"
+                          type="button"
+                        >
+                          <i class="fa-regular fa-pen-to-square"></i>
+                        </button>
+
+                        <button
+                          class="action-icon-btn icon-delete"
+                          title="Delete"
+                          onclick="deleteProduct('{{ item.product_id }}')"
+                          type="button"
+                        >
+                          <i class="fa-regular fa-trash-can"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %} {% else %}
+                  <tr>
+                    <td
+                      colspan="4"
+                      style="text-align: center; color: #6b7280; padding: 20px"
+                    >
+                      No products yet.
+                    </td>
+                  </tr>
                   {% endif %}
                 </tbody>
               </table>
@@ -620,8 +426,9 @@
           </div>
         </div>
       </div>
+      {% endif %}
 
-      <!--  NOTIFICATIONS -->
+      <!-- NOTIFICATIONS -->
       <div id="view-notifications" class="view-section" style="display: none">
         <header class="top-header">
           <div class="header-title"><h2>Notifications</h2></div>
@@ -637,7 +444,11 @@
           <div class="card-container">
             <div class="table-header">
               <div class="section-title"><h3>All Activity</h3></div>
-              <a href="#" class="mark-read-link" onclick="alert('Feature coming soon')">
+              <a
+                href="#"
+                class="mark-read-link"
+                onclick="alert('Feature coming soon')"
+              >
                 Mark all as read
               </a>
             </div>
@@ -651,468 +462,573 @@
       </div>
 
       <!-- INVENTORY MANAGEMENT -->
-<div id="view-inventory-management" class="view-section" style="display: none">
-  <header class="top-header">
-    <div class="header-title">
-      <h2>Inventory Management</h2>
-      <p>Track incoming/outgoing items (entries)</p>
-    </div>
-
-    <div class="header-actions">
-      <div class="date-widget">
-        <i class="fa-regular fa-calendar" style="margin-right: 8px"></i>
-        <span class="current-date-display"></span>
-      </div>
-
-      <!-- Example action button -->
-      <button class="btn-primary" type="button" onclick="openSendModal()">
-      <i class="fa-solid fa-paper-plane" style="margin-right: 8px"></i>
-      Shipment
-    </button>
-        </div>
-      </header>
-
-  <div class="content-scroll custom-scrollbar">
-    <div class="card-container">
-      <div class="table-header">
-        <div class="table-title">
-          <h3>Entries</h3>
-          <span class="count-badge" id="inv-mgmt-count">
-            {{ inv_entries|length if inv_entries else 0 }}
-          </span>
-        </div>
-
-        <div class="table-actions" style="display:flex; gap:10px; align-items:center;">
-  <div class="search-box" style="flex: 1;">
-    <i class="fa-solid fa-search"></i>
-    <input
-      type="text"
-      id="inv-mgmt-search"
-      placeholder="Search entries..."
-      class="search-input"
-      oninput="filterInvMgmt()"
-    />
-  </div>
-
-  <button class="btn-secondary" type="button" onclick="openSendCopyModal()">
-    <i class="fa-solid fa-copy" style="margin-right:8px;"></i>
-    Send Copy
-  </button>
-
-  <button class="btn-primary" type="button" onclick="openSendModal()">
-    <i class="fa-solid fa-paper-plane" style="margin-right:8px;"></i>
-    Shipment
-  </button>
-</div>
-
-      </div>
-
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Entry #</th>
-              <th>IS No.</th>
-              <th>Date</th>
-              <th>FS Month</th>
-              <th>Item No.</th>
-              <th>Item Code</th>
-              <th>Description</th>
-              <th>Qty</th>
-              <th>Amount</th>
-              <th>Total Amount</th>
-              <th>PO #</th>
-              <th>Sub Code</th>
-              <th>User</th>
-              <th>Category</th>
-            </tr>
-          </thead>
-
-          <tbody id="inv-mgmt-body">
-            {% if inv_entries %}
-              {% for e in inv_entries %}
-              <tr class="inv-mgmt-row">
-                <td>{{ e.entry_no }}</td>
-                <td>{{ e.is_no }}</td>
-                <td>{{ e.entry_date }}</td>
-                <td>{{ e.fs_month }}</td>
-                <td>{{ e.item_no }}</td>
-                <td>{{ e.item_code }}</td>
-                <td>{{ e.description }}</td>
-                <td>{{ e.qty }}</td>
-                <td>{{ e.amount }}</td>
-                <td>{{ e.total_amount }}</td>
-                <td>{{ e.po_no }}</td>
-                <td>{{ e.sub_code }}</td>
-                <td>{{ e.user_name }}</td>
-                <td>{{ e.category }}</td>
-              </tr>
-              {% endfor %}
-            {% else %}
-              <tr>
-                <td colspan="14" style="text-align:center; color:#6b7280; padding:20px;">
-                  No inventory entries yet.
-                </td>
-              </tr>
-            {% endif %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- SEND COPY MODAL -->
-<div id="sendCopyModal" class="modal-overlay" style="display:none;">
-  <div class="modal-window" style="width:min(1250px,98vw); height:min(820px,94vh);">
-    <div class="modal-topbar">
-      <div>
-        <h3 style="margin:0;">Send Copy</h3>
-        <p style="margin:4px 0 0; color:#6b7280; font-size:13px;">
-          Receipt details + item lines (connect backend later)
-        </p>
-      </div>
-      <button class="icon-close" type="button" onclick="closeSendCopyModal()">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-
-    <form id="sendCopyForm" onsubmit="submitSendCopy(event)" style="padding:16px 18px; overflow:auto;">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <!-- Top header fields -->
-      <div class="sendcopy-top">
-        <div class="form-group">
-          <label>Receipt No.</label>
-          <input type="text" id="sc_receipt_no" placeholder="AUTO (connect backend later)" />
-        </div>
-
-        <div class="form-group">
-          <label>Vendor Name</label>
-          <input type="text" id="sc_vendor_name" placeholder="Enter vendor name..." />
-        </div>
-      </div>
-
-      <!-- Mini clickable header sections -->
-      <div class="sc-tabs">
-        <button type="button" class="sc-tab active" data-tab="sc_receipt" onclick="switchScTab('sc_receipt', this)">
-          Receipt
-        </button>
-        <button type="button" class="sc-tab" data-tab="sc_shipping" onclick="switchScTab('sc_shipping', this)">
-          Shipping
-        </button>
-        <button type="button" class="sc-tab" data-tab="sc_reference" onclick="switchScTab('sc_reference', this)">
-          Reference
-        </button>
-      </div>
-
-      <!-- Receipt section -->
-      <div id="sc_receipt" class="sc-panel">
-        <div class="sendcopy-grid">
-          <div class="form-group">
-            <label>PO Number</label>
-            <input type="text" id="sc_po_number" />
-          </div>
-          <div class="form-group">
-            <label>Receipt Date</label>
-            <input type="date" id="sc_receipt_date" />
-          </div>
-          <div class="form-group">
-            <label>Template</label>
-            <input type="text" id="sc_template" />
+      {% if session['role'] == "dev" %}
+      <div
+        id="view-inventory-management"
+        class="view-section"
+        style="display: none"
+      >
+        <header class="top-header">
+          <div class="header-title">
+            <h2>Inventory Management</h2>
+            <p>Track incoming/outgoing items (entries)</p>
           </div>
 
-          <div class="form-group">
-            <label>FOB Point</label>
-            <input type="text" id="sc_fob_point" />
-          </div>
-          <div class="form-group">
-            <label>Terms Code</label>
-            <input type="text" id="sc_terms_code" />
-          </div>
-          <div class="form-group">
-            <label>Vendor Acct. Set</label>
-            <input type="text" id="sc_vendor_acct_set" />
-          </div>
+          <div class="header-actions">
+            <div class="date-widget">
+              <i class="fa-regular fa-calendar" style="margin-right: 8px"></i>
+              <span class="current-date-display"></span>
+            </div>
 
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label>Description</label>
-            <input type="text" id="sc_description" />
+            <button class="btn-primary" type="button" onclick="openSendModal()">
+              <i class="fa-solid fa-paper-plane" style="margin-right: 8px"></i>
+              Shipment
+            </button>
           </div>
+        </header>
 
-          <div class="form-group">
-            <label>Posting Date</label>
-            <input type="date" id="sc_posting_date" />
-          </div>
-          <div class="form-group">
-            <label>Bill To Location</label>
-            <input type="text" id="sc_bill_to" />
-          </div>
-          <div class="form-group">
-            <label>Ship To</label>
-            <input type="text" id="sc_ship_to" />
+        <div class="content-scroll custom-scrollbar">
+          <div class="card-container">
+            <div class="table-header">
+              <div class="table-title">
+                <h3>Entries</h3>
+                <span class="count-badge" id="inv-mgmt-count">
+                  {{ inv_entries|length if inv_entries else 0 }}
+                </span>
+              </div>
+
+              <div
+                class="table-actions"
+                style="display: flex; gap: 10px; align-items: center"
+              >
+                <div class="search-box" style="flex: 1">
+                  <i class="fa-solid fa-search"></i>
+                  <input
+                    type="text"
+                    id="inv-mgmt-search"
+                    placeholder="Search entries..."
+                    class="search-input"
+                    oninput="filterInvMgmt()"
+                  />
+                </div>
+
+                <button
+                  class="btn-secondary"
+                  type="button"
+                  onclick="openSendCopyModal()"
+                >
+                  <i class="fa-solid fa-copy" style="margin-right: 8px"></i>
+                  Send Copy
+                </button>
+
+                <button
+                  class="btn-primary"
+                  type="button"
+                  onclick="openSendModal()"
+                >
+                  <i
+                    class="fa-solid fa-paper-plane"
+                    style="margin-right: 8px"
+                  ></i>
+                  Shipment
+                </button>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Entry #</th>
+                    <th>IS No.</th>
+                    <th>Date</th>
+                    <th>FS Month</th>
+                    <th>Item No.</th>
+                    <th>Item Code</th>
+                    <th>Description</th>
+                    <th>Qty</th>
+                    <th>Amount</th>
+                    <th>Total Amount</th>
+                    <th>PO #</th>
+                    <th>Sub Code</th>
+                    <th>User</th>
+                    <th>Category</th>
+                  </tr>
+                </thead>
+
+                <tbody id="inv-mgmt-body">
+                  {% if inv_entries %} {% for e in inv_entries %}
+                  <tr class="inv-mgmt-row">
+                    <td>{{ e.entry_no }}</td>
+                    <td>{{ e.is_no }}</td>
+                    <td>{{ e.entry_date }}</td>
+                    <td>{{ e.fs_month }}</td>
+                    <td>{{ e.item_no }}</td>
+                    <td>{{ e.item_code }}</td>
+                    <td>{{ e.description }}</td>
+                    <td>{{ e.qty }}</td>
+                    <td>{{ e.amount }}</td>
+                    <td>{{ e.total_amount }}</td>
+                    <td>{{ e.po_no }}</td>
+                    <td>{{ e.sub_code }}</td>
+                    <td>{{ e.user_name }}</td>
+                    <td>{{ e.category }}</td>
+                  </tr>
+                  {% endfor %} {% else %}
+                  <tr>
+                    <td
+                      colspan="14"
+                      style="text-align: center; color: #6b7280; padding: 20px"
+                    >
+                      No inventory entries yet.
+                    </td>
+                  </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
-
-      <!-- Shipping section -->
-      <div id="sc_shipping" class="sc-panel" style="display:none;">
-        <div class="sendcopy-grid">
-          <div class="form-group">
-            <label>Ship-Via</label>
-            <input type="text" id="sc_ship_via" />
+      {% else %}
+      <!-- Non-dev: available soon -->
+      <div
+        id="view-inventory-management"
+        class="view-section"
+        style="display: none"
+      >
+        <header class="top-header">
+          <div class="header-title">
+            <h2>Inventory Management</h2>
+            <p>Feature available soon.</p>
           </div>
-          <div class="form-group">
-            <label>Last Receipt No.</label>
-            <input type="text" id="sc_last_receipt_no" />
+          <div class="header-actions">
+            <div class="date-widget">
+              <i class="fa-regular fa-calendar" style="margin-right: 8px"></i>
+              <span class="current-date-display"></span>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Location (Header)</label>
-            <input type="text" id="sc_header_location" />
+        </header>
+
+        <div class="content-scroll custom-scrollbar">
+          <div class="card-container">
+            <div class="card" style="padding: 18px">
+              <h3 style="margin: 0 0 8px">Feature available soon</h3>
+              <p style="margin: 0; color: #6b7280">
+                This module is currently available for <b>dev</b> role only.
+              </p>
+            </div>
           </div>
         </div>
       </div>
+      {% endif %}
 
-      <!-- Reference section -->
-      <div id="sc_reference" class="sc-panel" style="display:none;">
-        <div class="sendcopy-grid">
-          <div class="form-group">
-            <label>Reference</label>
-            <input type="text" id="sc_reference" />
-          </div>
-        </div>
-      </div>
-
-      <!-- Items -->
-      <div class="items-header">
-        <h4 style="margin:0;">Items</h4>
-        <button type="button" class="btn-secondary" onclick="addSendCopyRow()">
-          <i class="fa-solid fa-plus" style="margin-right:8px;"></i>Add Row
-        </button>
-      </div>
-
-      <div class="table-wrapper" style="margin-top:12px;">
-        <table id="sendCopyTable">
-          <thead>
-            <tr>
-              <th>Units</th>
-              <th>Complete PO</th>
-              <th>Item Number</th>
-              <th>Item Description</th>
-              <th>Location</th>
-              <th>Drop-Ship</th>
-              <th>Quantity Received</th>
-              <th>Units of Measure</th>
-              <th>Unit Cost</th>
-              <th class="text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody id="sendCopyBody"></tbody>
-        </table>
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn-secondary" onclick="closeSendCopyModal()">Cancel</button>
-        <button type="submit" class="btn-primary">Save</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- SEND COPY MODAL -->
-<div id="sendModal" class="modal-overlay" style="display:none;">
-  <div class="modal-window">
-    <div class="modal-topbar">
-      <div>
-        <h3 style="margin:0;">Send Copy / Shipment</h3>
-        <p style="margin:4px 0 0; color:#6b7280; font-size:13px;">
-          Fill shipment details and add item rows
-        </p>
-      </div>
-      <button class="icon-close" type="button" onclick="closeSendModal()">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-
-    <form id="sendForm" onsubmit="submitShipment(event)">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <!-- Top Fields -->
-      <div class="send-grid">
-        <div class="form-group">
-          <label>Shipment Number</label>
-          <input type="text" id="ship_no" required />
-        </div>
-
-        <div class="form-group">
-          <label>Shipment Date</label>
-          <input type="date" id="ship_date" required />
-        </div>
-
-        <div class="form-group">
-          <label>Description</label>
-          <input type="text" id="ship_desc" />
-        </div>
-
-        <div class="form-group">
-          <label>Customer Number</label>
-          <input type="text" id="cust_no" />
-        </div>
-
-        <div class="form-group">
-          <label>Contact</label>
-          <input type="text" id="contact" />
-        </div>
-
-        <div class="form-group">
-          <label>Price List</label>
-          <input type="text" id="price_list" />
-        </div>
-
-        <div class="form-group">
-          <label>Pending Date</label>
-          <input type="date" id="pending_date" />
-        </div>
-
-        <div class="form-group">
-          <label>Reference</label>
-          <input type="text" id="reference" />
-        </div>
-
-        <div class="form-group">
-          <label>Entry Type</label>
-          <select id="entry_type" required>
-            <option value="">Select...</option>
-            <option value="INCOMING">Incoming</option>
-            <option value="OUTGOING">Outgoing</option>
-            <option value="TRANSFER">Transfer</option>
-            <option value="RETURN">Return</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Items Table -->
-      <div class="items-header">
-        <h4 style="margin:0;">Items</h4>
-        <button type="button" class="btn-secondary" onclick="addShipmentRow()">
-          <i class="fa-solid fa-plus" style="margin-right:8px;"></i>Add Row
-        </button>
-      </div>
-
-      <div class="table-wrapper" style="margin-top:12px;">
-        <table id="shipmentTable">
-          <thead>
-            <tr>
-              <th>Units</th>
-              <th>Item Number</th>
-              <th>Location</th>
-              <th>Event Description</th>
-              <th>Category</th>
-              <th>Drop Ship</th>
-              <th>Quantity Received</th>
-              <th>Unit of Measures</th>
-              <th>Unit Cost</th>
-              <th class="text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody id="shipmentBody"></tbody>
-        </table>
-      </div>
-
-      <!-- Footer Buttons -->
-      <div class="modal-footer">
-        <button type="button" class="btn-secondary" onclick="closeSendModal()">Cancel</button>
-        <button type="submit" class="btn-primary">Submit</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- HISTORY -->
-<div id="view-history" class="view-section" style="display: none">
-  <header class="top-header">
-    <div class="header-title">
-      <h2>History</h2>
-      <p>Approved / Rejected request history</p>
-    </div>
-
-    <div class="header-actions">
-      <div class="date-widget">
-        <i class="fa-regular fa-calendar" style="margin-right: 8px"></i>
-        <span class="current-date-display"></span>
-      </div>
-    </div>
-  </header>
-
-  <div class="content-scroll custom-scrollbar">
-    <div class="card-container">
-      <div class="table-header">
-        <div class="table-title">
-          <h3>Request Actions</h3>
-          <span class="count-badge" id="history-count">
-            {{ history_rows|length if history_rows else 0 }}
-          </span>
-        </div>
-
-        <div class="table-actions">
-          <div class="search-box">
-            <i class="fa-solid fa-search"></i>
-            <input
-              type="text"
-              id="history-search"
-              placeholder="Search history..."
-              class="search-input"
-              oninput="filterHistory()"
-            />
+      <!-- SEND COPY MODAL -->
+      <div id="sendCopyModal" class="modal-overlay" style="display: none">
+        <div
+          class="modal-window"
+          style="width: min(1250px, 98vw); height: min(820px, 94vh)"
+        >
+          <div class="modal-topbar">
+            <div>
+              <h3 style="margin: 0">Send Copy</h3>
+              <p style="margin: 4px 0 0; color: #6b7280; font-size: 13px">
+                Receipt details + item lines (connect backend later)
+              </p>
+            </div>
+            <button
+              class="icon-close"
+              type="button"
+              onclick="closeSendCopyModal()"
+            >
+              <i class="fa-solid fa-xmark"></i>
+            </button>
           </div>
 
-          <select id="history-filter" class="filter-select" onchange="filterHistory()">
-            <option value="">All</option>
-            <option value="APPROVED">Approved</option>
-            <option value="REJECTED">Rejected</option>
-          </select>
+          <form
+            id="sendCopyForm"
+            onsubmit="submitSendCopy(event)"
+            style="padding: 16px 18px; overflow: auto"
+          >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+            <div class="sendcopy-top">
+              <div class="form-group">
+                <label>Receipt No.</label>
+                <input
+                  type="text"
+                  id="sc_receipt_no"
+                  placeholder="AUTO (connect backend later)"
+                />
+              </div>
+
+              <div class="form-group">
+                <label>Vendor Name</label>
+                <input
+                  type="text"
+                  id="sc_vendor_name"
+                  placeholder="Enter vendor name..."
+                />
+              </div>
+            </div>
+
+            <div class="sc-tabs">
+              <button
+                type="button"
+                class="sc-tab active"
+                onclick="switchScTab('sc_receipt', this)"
+              >
+                Receipt
+              </button>
+              <button
+                type="button"
+                class="sc-tab"
+                onclick="switchScTab('sc_shipping', this)"
+              >
+                Shipping
+              </button>
+              <button
+                type="button"
+                class="sc-tab"
+                onclick="switchScTab('sc_reference', this)"
+              >
+                Reference
+              </button>
+            </div>
+
+            <div id="sc_receipt" class="sc-panel">
+              <div class="sendcopy-grid">
+                <div class="form-group">
+                  <label>PO Number</label>
+                  <input type="text" id="sc_po_number" />
+                </div>
+                <div class="form-group">
+                  <label>Receipt Date</label>
+                  <input type="date" id="sc_receipt_date" />
+                </div>
+                <div class="form-group">
+                  <label>Template</label>
+                  <input type="text" id="sc_template" />
+                </div>
+
+                <div class="form-group">
+                  <label>FOB Point</label>
+                  <input type="text" id="sc_fob_point" />
+                </div>
+                <div class="form-group">
+                  <label>Terms Code</label>
+                  <input type="text" id="sc_terms_code" />
+                </div>
+                <div class="form-group">
+                  <label>Vendor Acct. Set</label>
+                  <input type="text" id="sc_vendor_acct_set" />
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1">
+                  <label>Description</label>
+                  <input type="text" id="sc_description" />
+                </div>
+
+                <div class="form-group">
+                  <label>Posting Date</label>
+                  <input type="date" id="sc_posting_date" />
+                </div>
+                <div class="form-group">
+                  <label>Bill To Location</label>
+                  <input type="text" id="sc_bill_to" />
+                </div>
+                <div class="form-group">
+                  <label>Ship To</label>
+                  <input type="text" id="sc_ship_to" />
+                </div>
+              </div>
+            </div>
+
+            <div id="sc_shipping" class="sc-panel" style="display: none">
+              <div class="sendcopy-grid">
+                <div class="form-group">
+                  <label>Ship-Via</label>
+                  <input type="text" id="sc_ship_via" />
+                </div>
+                <div class="form-group">
+                  <label>Last Receipt No.</label>
+                  <input type="text" id="sc_last_receipt_no" />
+                </div>
+                <div class="form-group">
+                  <label>Location (Header)</label>
+                  <input type="text" id="sc_header_location" />
+                </div>
+              </div>
+            </div>
+
+            <div id="sc_reference" class="sc-panel" style="display: none">
+              <div class="sendcopy-grid">
+                <div class="form-group">
+                  <label>Reference</label>
+                  <input type="text" id="sc_reference" />
+                </div>
+              </div>
+            </div>
+
+            <div class="items-header">
+              <h4 style="margin: 0">Items</h4>
+              <button
+                type="button"
+                class="btn-secondary"
+                onclick="addSendCopyRow()"
+              >
+                <i class="fa-solid fa-plus" style="margin-right: 8px"></i>Add
+                Row
+              </button>
+            </div>
+
+            <div class="table-wrapper" style="margin-top: 12px">
+              <table id="sendCopyTable">
+                <thead>
+                  <tr>
+                    <th>Units</th>
+                    <th>Complete PO</th>
+                    <th>Item Number</th>
+                    <th>Item Description</th>
+                    <th>Location</th>
+                    <th>Drop-Ship</th>
+                    <th>Quantity Received</th>
+                    <th>Units of Measure</th>
+                    <th>Unit Cost</th>
+                    <th class="text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="sendCopyBody"></tbody>
+              </table>
+            </div>
+
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn-secondary"
+                onclick="closeSendCopyModal()"
+              >
+                Cancel
+              </button>
+              <button type="submit" class="btn-primary">Save</button>
+            </div>
+          </form>
         </div>
       </div>
 
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Request ID</th>
-              <th>Action</th>
-              <th>By</th>
-              <th>Message</th>
-              <th>Date</th>
-            </tr>
-          </thead>
+      <!-- SHIPMENT MODAL -->
+      <div id="sendModal" class="modal-overlay" style="display: none">
+        <div class="modal-window">
+          <div class="modal-topbar">
+            <div>
+              <h3 style="margin: 0">Send Copy / Shipment</h3>
+              <p style="margin: 4px 0 0; color: #6b7280; font-size: 13px">
+                Fill shipment details and add item rows
+              </p>
+            </div>
+            <button class="icon-close" type="button" onclick="closeSendModal()">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
 
-          <tbody id="history-body">
-            {% if history_rows %}
-              {% for h in history_rows %}
-              <tr class="history-row" data-action="{{ (h.action or '')|upper }}">
-                <td>REQ#{{ h.request_id }}</td>
-                <td>
-                  <span class="status-badge status-{{ h.action|lower }}">
-                    {{ h.action }}
-                  </span>
-                </td>
-                <td>{{ h.actor_email or '-' }}</td>
-                <td>{{ h.message or '-' }}</td>
-                <td>{{ h.created_at }}</td>
-              </tr>
-              {% endfor %}
-            {% else %}
-              <tr>
-                <td colspan="5" style="text-align:center; color:#6b7280; padding:20px;">
-                  No history yet.
-                </td>
-              </tr>
-            {% endif %}
-          </tbody>
-        </table>
+          <form id="sendForm" onsubmit="submitShipment(event)">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+            <div class="send-grid">
+              <div class="form-group">
+                <label>Shipment Number</label>
+                <input type="text" id="ship_no" required />
+              </div>
+
+              <div class="form-group">
+                <label>Shipment Date</label>
+                <input type="date" id="ship_date" required />
+              </div>
+
+              <div class="form-group">
+                <label>Description</label>
+                <input type="text" id="ship_desc" />
+              </div>
+
+              <div class="form-group">
+                <label>Customer Number</label>
+                <input type="text" id="cust_no" />
+              </div>
+
+              <div class="form-group">
+                <label>Contact</label>
+                <input type="text" id="contact" />
+              </div>
+
+              <div class="form-group">
+                <label>Price List</label>
+                <input type="text" id="price_list" />
+              </div>
+
+              <div class="form-group">
+                <label>Pending Date</label>
+                <input type="date" id="pending_date" />
+              </div>
+
+              <div class="form-group">
+                <label>Reference</label>
+                <input type="text" id="reference" />
+              </div>
+
+              <div class="form-group">
+                <label>Entry Type</label>
+                <select id="entry_type" required>
+                  <option value="">Select...</option>
+                  <option value="INCOMING">Incoming</option>
+                  <option value="OUTGOING">Outgoing</option>
+                  <option value="TRANSFER">Transfer</option>
+                  <option value="RETURN">Return</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="items-header">
+              <h4 style="margin: 0">Items</h4>
+              <button
+                type="button"
+                class="btn-secondary"
+                onclick="addShipmentRow()"
+              >
+                <i class="fa-solid fa-plus" style="margin-right: 8px"></i>Add
+                Row
+              </button>
+            </div>
+
+            <div class="table-wrapper" style="margin-top: 12px">
+              <table id="shipmentTable">
+                <thead>
+                  <tr>
+                    <th>Units</th>
+                    <th>Item Number</th>
+                    <th>Location</th>
+                    <th>Event Description</th>
+                    <th>Category</th>
+                    <th>Drop Ship</th>
+                    <th>Quantity Received</th>
+                    <th>Unit of Measures</th>
+                    <th>Unit Cost</th>
+                    <th class="text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="shipmentBody"></tbody>
+              </table>
+            </div>
+
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn-secondary"
+                onclick="closeSendModal()"
+              >
+                Cancel
+              </button>
+              <button type="submit" class="btn-primary">Submit</button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
-  </div>
-</div>
 
+      <!-- HISTORY -->
+      <div id="view-history" class="view-section" style="display: none">
+        <header class="top-header">
+          <div class="header-title">
+            <h2>History</h2>
+            <p>Approved / Rejected request history</p>
+          </div>
+
+          <div class="header-actions">
+            <div class="date-widget">
+              <i class="fa-regular fa-calendar" style="margin-right: 8px"></i>
+              <span class="current-date-display"></span>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-scroll custom-scrollbar">
+          <div class="card-container">
+            <div class="table-header">
+              <div class="table-title">
+                <h3>Request Actions</h3>
+                <span class="count-badge" id="history-count">
+                  {{ history_rows|length if history_rows else 0 }}
+                </span>
+              </div>
+
+              <div class="table-actions">
+                <div class="search-box">
+                  <i class="fa-solid fa-search"></i>
+                  <input
+                    type="text"
+                    id="history-search"
+                    placeholder="Search history..."
+                    class="search-input"
+                    oninput="filterHistory()"
+                  />
+                </div>
+
+                <select
+                  id="history-filter"
+                  class="filter-select"
+                  onchange="filterHistory()"
+                >
+                  <option value="">All</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Request ID</th>
+                    <th>Action</th>
+                    <th>By</th>
+                    <th>Message</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+
+                <tbody id="history-body">
+                  {% if history_rows %} {% for h in history_rows %}
+                  <tr
+                    class="history-row"
+                    data-action="{{ (h.action or '')|upper }}"
+                  >
+                    <td>REQ#{{ h.request_id }}</td>
+                    <td>
+                      <span class="status-badge status-{{ h.action|lower }}">
+                        {{ h.action }}
+                      </span>
+                    </td>
+                    <td>{{ h.actor_email or '-' }}</td>
+                    <td>{{ h.message or '-' }}</td>
+                    <td>{{ h.created_at }}</td>
+                  </tr>
+                  {% endfor %} {% else %}
+                  <tr>
+                    <td
+                      colspan="5"
+                      style="text-align: center; color: #6b7280; padding: 20px"
+                    >
+                      No history yet.
+                    </td>
+                  </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
       <div id="view-settings" class="view-section" style="display: none">
         <header class="top-header">
           <div class="header-title"><h2>Settings</h2></div>
@@ -1134,15 +1050,30 @@
               <div class="form-group-wrapper">
                 <div class="form-group">
                   <label>Email</label>
-                  <input type="email" id="user-email" value="{{ session['email'] }}" readonly />
+                  <input
+                    type="email"
+                    id="user-email"
+                    value="{{ session['email'] }}"
+                    readonly
+                  />
                 </div>
                 <div class="form-group">
                   <label>Department</label>
-                  <input type="email" id="user-dept-display" value="{{ session['dept'] }}" readonly />
+                  <input
+                    type="email"
+                    id="user-dept-display"
+                    value="{{ session['dept'] }}"
+                    readonly
+                  />
                 </div>
                 <div class="form-group">
                   <label>Position Role</label>
-                  <input type="text" id="user-pos-display" value="{{ session['position'] }}" readonly />
+                  <input
+                    type="text"
+                    id="user-pos-display"
+                    value="{{ session['position'] }}"
+                    readonly
+                  />
                 </div>
                 <p class="text-muted text-sm mt-2">
                   Information managed by IT department.
@@ -1163,16 +1094,18 @@
       </div>
     </main>
 
-    <!-- INVENTORY MODAL  -->
+    <!-- INVENTORY MODAL (dev only but safe if exists) -->
     <div
       id="invModal"
       class="modal-overlay"
       style="
         display: none;
         position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: rgba(0,0,0,0.5);
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
         z-index: 1000;
         align-items: center;
         justify-content: center;
@@ -1180,483 +1113,53 @@
     >
       <div
         class="modal-content"
-        style="background: white; padding: 2rem; border-radius: 12px; width: 420px;"
+        style="
+          background: white;
+          padding: 2rem;
+          border-radius: 12px;
+          width: 420px;
+        "
       >
-        <h3 id="invModalTitle" style="margin-bottom: 1rem;">Add Product</h3>
+        <h3 id="invModalTitle" style="margin-bottom: 1rem">Add Product</h3>
 
         <form id="invForm" onsubmit="saveProduct(event)">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
           <input type="hidden" id="inv_product_id" />
 
-          <div class="form-group" style="margin-bottom: 1rem;">
+          <div class="form-group" style="margin-bottom: 1rem">
             <label class="form-label">Product Name</label>
-            <input type="text" id="inv_product_name" class="form-control" required />
+            <input
+              type="text"
+              id="inv_product_name"
+              class="form-control"
+              required
+            />
           </div>
 
-          <div class="form-group" style="margin-bottom: 1.5rem;">
+          <div class="form-group" style="margin-bottom: 1.5rem">
             <label class="form-label">Quantity</label>
-            <input type="number" id="inv_quantity" class="form-control" min="0" required />
+            <input
+              type="number"
+              id="inv_quantity"
+              class="form-control"
+              min="0"
+              required
+            />
           </div>
 
-          <div style="display:flex; gap:10px; justify-content:flex-end;">
-            <button type="button" onclick="closeInvModal()" class="btn-secondary">Cancel</button>
+          <div style="display: flex; gap: 10px; justify-content: flex-end">
+            <button
+              type="button"
+              onclick="closeInvModal()"
+              class="btn-secondary"
+            >
+              Cancel
+            </button>
             <button type="submit" class="btn-primary">Save</button>
           </div>
         </form>
       </div>
     </div>
 
-    <script>
-     
-
-      // Dashboard Table Filter 
-
-function openSendModal() {
-  const m = document.getElementById("sendModal");
-  if (m) m.style.display = "flex";
-
-  // start with 1 row if empty
-  const body = document.getElementById("shipmentBody");
-  if (body && body.children.length === 0) addShipmentRow();
-}
-
-function closeSendModal() {
-  const m = document.getElementById("sendModal");
-  if (m) m.style.display = "none";
-}
-
-function addShipmentRow() {
-  const body = document.getElementById("shipmentBody");
-  if (!body) return;
-
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td><input type="text" class="tbl-in" name="units[]" /></td>
-    <td><input type="text" class="tbl-in" name="item_number[]" /></td>
-    <td><input type="text" class="tbl-in" name="location[]" /></td>
-    <td><input type="text" class="tbl-in" name="event_description[]" /></td>
-    <td><input type="text" class="tbl-in" name="category[]" /></td>
-    <td>
-      <select class="tbl-in" name="drop_ship[]">
-        <option value="NO">No</option>
-        <option value="YES">Yes</option>
-      </select>
-    </td>
-    <td><input type="number" class="tbl-in" name="qty_received[]" min="0" /></td>
-    <td><input type="text" class="tbl-in" name="uom[]" /></td>
-    <td><input type="number" class="tbl-in" name="unit_cost[]" min="0" step="0.01" /></td>
-    <td class="text-right">
-      <button type="button" class="action-icon-btn icon-delete" onclick="this.closest('tr').remove()">
-        <i class="fa-regular fa-trash-can"></i>
-      </button>
-    </td>
-  `;
-  body.appendChild(tr);
-}
-
-/* small styling for table inputs */
-
-
-async function submitShipment(e) {
-  e.preventDefault();
-
-  // Collect header fields
-  const payload = {
-    shipment_number: document.getElementById("ship_no").value.trim(),
-    shipment_date: document.getElementById("ship_date").value,
-    description: document.getElementById("ship_desc").value.trim(),
-    customer_number: document.getElementById("cust_no").value.trim(),
-    contact: document.getElementById("contact").value.trim(),
-    price_list: document.getElementById("price_list").value.trim(),
-    pending_date: document.getElementById("pending_date").value,
-    reference: document.getElementById("reference").value.trim(),
-    entry_type: document.getElementById("entry_type").value,
-    items: []
-  };
-
-  // Collect rows
-  document.querySelectorAll("#shipmentBody tr").forEach((tr) => {
-    const inputs = tr.querySelectorAll("input, select");
-    const row = {};
-    inputs.forEach((el) => (row[el.name.replace("[]","")] = el.value));
-    payload.items.push(row);
-  });
-
-  if (!payload.shipment_number) return alert("Shipment Number is required.");
-  if (!payload.shipment_date) return alert("Shipment Date is required.");
-  if (!payload.entry_type) return alert("Entry Type is required.");
-  if (payload.items.length === 0) return alert("Add at least 1 item row.");
-
-  console.log("Shipment payload:", payload);
-  alert("Ready to submit (check console). Connect to your API endpoint next.");
-  closeSendModal();
-}
-
-/* close modal on outside click */
-window.addEventListener("click", (e) => {
-  const m = document.getElementById("sendModal");
-  if (m && e.target === m) closeSendModal();
-});
-
-  // Date
-  function setDates() {
-    const dateOptions = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
-    const today = new Date().toLocaleDateString("en-US", dateOptions);
-    document.querySelectorAll(".current-date-display").forEach((el) => (el.innerText = today));
-  }
-
-  // Remember active tab
-  function rememberView(viewName) {
-    localStorage.setItem("activeView", viewName);
-  }
-
-  function restoreView() {
-    const v = localStorage.getItem("activeView");
-    if (v) switchView(v);
-  }
-
-  // Navigation (FIXED)
-  function switchView(viewName) {
-    rememberView(viewName);
-
-    // hide all sections
-    document.querySelectorAll(".view-section").forEach((el) => (el.style.display = "none"));
-    // remove active nav
-    document.querySelectorAll(".nav-item").forEach((el) => el.classList.remove("active"));
-
-    const viewEl = document.getElementById(`view-${viewName}`);
-    const navEl = document.getElementById(`nav-${viewName}`);
-
-    if (viewEl) viewEl.style.display = "flex";
-    if (navEl) navEl.classList.add("active");
-  }
-
-  // DASHBOARD filter (keep yours but REMOVE duplicate DOMContentLoaded calls)
-  function filterTable() {
-    const searchQuery = (document.getElementById("search-input")?.value || "").toLowerCase();
-    const statusFilter = (document.getElementById("status-filter")?.value || "").trim().toUpperCase();
-    const rows = document.querySelectorAll("#requests-table-body tr.request-row");
-
-    let visible = 0;
-    rows.forEach((row) => {
-      const text = (row.textContent || "").toLowerCase();
-      const status = (row.dataset.status || "").trim().toUpperCase();
-      const show = text.includes(searchQuery) && (statusFilter === "" || status === statusFilter);
-      row.style.display = show ? "" : "none";
-      if (show) visible++;
-    });
-
-    const badge = document.getElementById("table-count-badge");
-    if (badge) badge.textContent = visible;
-  }
-
-  // INVENTORY MANAGEMENT filter (NEW)
-  function filterInvMgmt() {
-    const q = (document.getElementById("inv-mgmt-search")?.value || "").toLowerCase();
-    const rows = document.querySelectorAll("#inv-mgmt-body tr.inv-mgmt-row");
-
-    let visible = 0;
-    rows.forEach((row) => {
-      const text = (row.textContent || "").toLowerCase();
-      const show = text.includes(q);
-      row.style.display = show ? "" : "none";
-      if (show) visible++;
-    });
-
-    const badge = document.getElementById("inv-mgmt-count");
-    if (badge) badge.textContent = visible;
-  }
-
-  // HISTORY filter (NEW)
-  function filterHistory() {
-    const q = (document.getElementById("history-search")?.value || "").toLowerCase();
-    const actionFilter = (document.getElementById("history-filter")?.value || "").trim().toUpperCase();
-    const rows = document.querySelectorAll("#history-body tr.history-row");
-
-    let visible = 0;
-    rows.forEach((row) => {
-      const text = (row.textContent || "").toLowerCase();
-      const action = (row.dataset.action || "").trim().toUpperCase();
-      const show = text.includes(q) && (actionFilter === "" || action === actionFilter);
-      row.style.display = show ? "" : "none";
-      if (show) visible++;
-    });
-
-    const badge = document.getElementById("history-count");
-    if (badge) badge.textContent = visible;
-  }
-
-  // init
-  window.addEventListener("load", () => {
-    setDates();
-    restoreView();
-
-    // run filters if present
-    filterTable();
-    filterInvMgmt();
-    filterHistory();
-
-    // lucide icons
-    if (window.lucide) lucide.createIcons();
-  });
-
-
-document.addEventListener("DOMContentLoaded", filterTable);
-
-      // Approve/Reject
-      function rejectRequest(requestId) {
-        const reason = prompt("Please enter the reason for rejection:");
-        if (reason === null) return;
-        if (reason.trim() === "") return alert("Rejection reason is required.");
-        updateStatus(requestId, "rejected", reason);
-      }
-
-      async function updateStatus(requestId, status, message = "") {
-        if (!confirm(`Mark request #${requestId} as ${status.toUpperCase()}?`)) return;
-
-        try {
-          const response = await fetch(`/api/request/${requestId}/status`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status, message }),
-          });
-
-          const result = await response.json().catch(() => ({}));
-
-          if (response.ok) {
-            alert("Success: " + (result.message || "Updated"));
-            location.reload();
-          } else {
-            alert("Error: " + (result.error || "Unknown error"));
-          }
-        } catch (error) {
-          console.error(error);
-          alert("Network error. Failed to update status.");
-        }
-      }
-
-      
-
-      //  Inventory Search
-      function filterInventory() {
-        const q = (document.getElementById("inv-search")?.value || "").toLowerCase();
-        document.querySelectorAll("#inventory-body tr.inv-row").forEach((row) => {
-          const name = row.getAttribute("data-name") || "";
-          row.style.display = name.includes(q) ? "" : "none";
-        });
-      }
-
-      //  Inventory Modal 
-      function openInvModal(id = "", name = "", qty = "") {
-        document.getElementById("invModalTitle").innerText = id ? "Edit Product" : "Add Product";
-        document.getElementById("inv_product_id").value = id;
-        document.getElementById("inv_product_name").value = name;
-        document.getElementById("inv_quantity").value = qty;
-        document.getElementById("invModal").style.display = "flex";
-      }
-
-      function closeInvModal() {
-        document.getElementById("invModal").style.display = "none";
-      }
-
-      //Add/Edit Product
-      async function saveProduct(e) {
-        e.preventDefault();
-
-        const id = document.getElementById("inv_product_id").value.trim();
-        const product_name = document.getElementById("inv_product_name").value.trim();
-        const quantity = Number(document.getElementById("inv_quantity").value);
-
-        if (!product_name) return alert("Product name is required.");
-        if (Number.isNaN(quantity) || quantity < 0) return alert("Quantity must be 0 or above.");
-
-        const url = id ? `/api/inventory/${id}` : `/api/inventory`;
-        const method = id ? "PUT" : "POST";
-
-        // stay in inventory after reload
-        rememberView("inventory");
-
-        try {
-          const res = await fetch(url, {
-            method,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ product_name, quantity }),
-          });
-
-          const data = await res.json().catch(() => ({}));
-
-          // Duplicate product
-          if (res.status === 409) {
-            alert(data.error || "Product already in inventory.");
-            return;
-          }
-
-          if (!res.ok) {
-            alert(data.error || "Failed to save product.");
-            return;
-          }
-
-          closeInvModal();
-          location.reload();
-        } catch (err) {
-          console.error(err);
-          alert("Network error.");
-        }
-      }
-
-      // Delete Product 
-      async function deleteProduct(id) {
-        if (!confirm("Delete this product?")) return;
-
-        rememberView("inventory");
-
-        try {
-          const res = await fetch(`/api/inventory/${id}`, { method: "DELETE" });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) return alert(data.error || "Failed to delete product.");
-          location.reload();
-        } catch (err) {
-          console.error(err);
-          alert("Network error.");
-        }
-      }
-
-       // --- Settings Profile ---
-      async function loadProfile() {
-        try {
-          const res = await fetch("/api/user-profile");
-          const data = await res.json();
-
-          if (data && !data.error) {
-            const emailEl = document.getElementById("user-email");
-            const deptEl = document.getElementById("user-dept-display");
-            const posEl = document.getElementById("user-pos-display");
-
-            if (emailEl) emailEl.value = data.email || "";
-            if (deptEl) deptEl.value = data.dept_name || "";
-            if (posEl) posEl.value = data.position_name || "";
-          }
-        } catch (err) {
-          console.error("Profile load error:", err);
-        }
-      }
-
-      //  Close modal when clicking outside 
-      window.addEventListener("click", (event) => {
-        const invModal = document.getElementById("invModal");
-        if (event.target === invModal) closeInvModal();
-      });
-
-      // Init
-      window.addEventListener("load", () => {
-        setDates();
-        restoreView();
-      });
-
-
-      function openSendCopyModal(){
-  const m = document.getElementById("sendCopyModal");
-  if (m) m.style.display = "flex";
-
-  const body = document.getElementById("sendCopyBody");
-  if (body && body.children.length === 0) addSendCopyRow();
-}
-
-function closeSendCopyModal(){
-  const m = document.getElementById("sendCopyModal");
-  if (m) m.style.display = "none";
-}
-
-function switchScTab(panelId, btn){
-  document.querySelectorAll("#sendCopyModal .sc-panel").forEach(p => p.style.display = "none");
-  const panel = document.getElementById(panelId);
-  if (panel) panel.style.display = "block";
-
-  document.querySelectorAll("#sendCopyModal .sc-tab").forEach(b => b.classList.remove("active"));
-  if (btn) btn.classList.add("active");
-}
-
-function addSendCopyRow(){
-  const body = document.getElementById("sendCopyBody");
-  if (!body) return;
-
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td><input class="tbl-in" name="units[]" type="text" /></td>
-    <td>
-      <select class="tbl-in" name="complete_po[]">
-        <option value="NO">No</option>
-        <option value="YES">Yes</option>
-      </select>
-    </td>
-    <td><input class="tbl-in" name="item_number[]" type="text" /></td>
-    <td><input class="tbl-in" name="item_description[]" type="text" /></td>
-    <td><input class="tbl-in" name="location[]" type="text" /></td>
-    <td>
-      <select class="tbl-in" name="drop_ship[]">
-        <option value="NO">No</option>
-        <option value="YES">Yes</option>
-      </select>
-    </td>
-    <td><input class="tbl-in" name="qty_received[]" type="number" min="0" /></td>
-    <td><input class="tbl-in" name="uom[]" type="text" /></td>
-    <td><input class="tbl-in" name="unit_cost[]" type="number" min="0" step="0.01" /></td>
-    <td class="text-right">
-      <button type="button" class="action-icon-btn icon-delete" onclick="this.closest('tr').remove()">
-        <i class="fa-regular fa-trash-can"></i>
-      </button>
-    </td>
-  `;
-  body.appendChild(tr);
-}
-
-async function submitSendCopy(e){
-  e.preventDefault();
-
-  const payload = {
-    receipt_no: document.getElementById("sc_receipt_no").value.trim(),
-    vendor_name: document.getElementById("sc_vendor_name").value.trim(),
-
-    po_number: document.getElementById("sc_po_number").value.trim(),
-    receipt_date: document.getElementById("sc_receipt_date").value,
-    template: document.getElementById("sc_template").value.trim(),
-    fob_point: document.getElementById("sc_fob_point").value.trim(),
-    terms_code: document.getElementById("sc_terms_code").value.trim(),
-    vendor_acct_set: document.getElementById("sc_vendor_acct_set").value.trim(),
-    description: document.getElementById("sc_description").value.trim(),
-    posting_date: document.getElementById("sc_posting_date").value,
-    bill_to: document.getElementById("sc_bill_to").value.trim(),
-    ship_to: document.getElementById("sc_ship_to").value.trim(),
-
-    ship_via: document.getElementById("sc_ship_via").value.trim(),
-    last_receipt_no: document.getElementById("sc_last_receipt_no").value.trim(),
-    header_location: document.getElementById("sc_header_location").value.trim(),
-
-    reference: document.getElementById("sc_reference").value.trim(),
-    items: []
-  };
-
-  document.querySelectorAll("#sendCopyBody tr").forEach((tr) => {
-    const row = {};
-    tr.querySelectorAll("input, select").forEach((el) => {
-      row[el.name.replace("[]","")] = el.value;
-    });
-    payload.items.push(row);
-  });
-
-  if (!payload.vendor_name) return alert("Vendor Name is required.");
-  if (payload.items.length === 0) return alert("Add at least 1 item row.");
-
-  console.log("Send Copy payload:", payload);
-  alert("Saved locally (console). Connect backend later.");
-  closeSendCopyModal();
-}
-
-/* close modal on outside click */
-window.addEventListener("click", (e) => {
-  const m = document.getElementById("sendCopyModal");
-  if (m && e.target === m) closeSendCopyModal();
-});
-    </script>
   </body>
 </html>

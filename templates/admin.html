@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Finance Dashboard</title>
 
-    <link rel="stylesheet" href="/static/admin.css" />
-    <link rel="stylesheet" href="/static/user.css" />
+    <link rel="stylesheet" href="/static/admin/admin.css" />
+    <link rel="stylesheet" href="/static/user/user.css" />
     <link rel="stylesheet" href="{{ url_for('static', filename='fonts/css/all.min.css') }}">
 
 
@@ -103,17 +103,6 @@
         <div class="content-scroll custom-scrollbar">
           <!-- STATS -->
           <div class="stats-grid">
-            <div class="stat-card card-blue">
-              <div class="stat-header">
-                <div class="icon-box">
-                  <i class="fa-regular fa-calendar-check"></i>
-                </div>
-              </div>
-              <div>
-                <h3 class="stat-value">{{ approvals_today }}</h3>
-                <p class="stat-label">Approvals Today</p>
-              </div>
-            </div>
 
             <div class="stat-card card-yellow">
               <div class="stat-header">
@@ -142,6 +131,26 @@
               <div>
                 <h3 class="stat-value">{{ rejected_count }}</h3>
                 <p class="stat-label">Total Rejected</p>
+              </div>
+          </div>
+          <div class="stat-card card-yellow">
+              <div class="stat-header">
+                <div class="icon-box"><i class="fa-solid fa-check-double"></i></i></div>
+              </div>
+              <div>
+                <h3 class="stat-value">{{ in_progress }}</h3>
+                <p class="stat-label">Total In Progress</p>
+              </div>
+            </div>
+            <div class="stat-card card-blue">
+              <div class="stat-header">
+                <div class="icon-box">
+                  <i class="fa-regular fa-calendar-check"></i>
+                </div>
+              </div>
+              <div>
+                <h3 class="stat-value">{{  completed }}</h3>
+                <p class="stat-label">Completed</p>
               </div>
             </div>
           </div>
@@ -180,6 +189,10 @@
                   <option value="PENDING">Pending</option>
                   <option value="APPROVED">Approved</option>
                   <option value="REJECTED">Rejected</option>
+                  {% if session['position'] == 'Purchasing' %}
+                  <option values="INPROGRESS">In Progress</option>
+                  <option values="INPROGRESS">Completed</option>
+                  {%endif%}
                 </select>
               </div>
             </div>
@@ -220,8 +233,8 @@
                         href="/download_attachment/{{ req.request_id }}"
                         target="_blank"
                         class="file-link"
-                      >
-                        <i class="fa-solid fa-paperclip"></i> {{ req.filename }}
+                      ><i class="fa-solid fa-paperclip"></i>View File
+                        
                       </a>
                       {% else %}
                       <span class="text-muted">No file</span>
@@ -229,11 +242,9 @@
                     </td>
 
                     <td>
-                      <span
-                        class="status-badge status-{{ (req.status_for_me or '')|lower }}"
-                      >
-                        {{ req.status_for_me }}
-                      </span>
+                      <span class="status-badge status-{{ (req.status_for_me or '')|lower|replace(' ', '-') }}">
+                      {{ req.status_for_me }}
+                    </span>
                     </td>
 
                     <td class="text-right">
@@ -265,7 +276,7 @@
                       </div>
 
                       {% elif req.status_name == 'APPROVED' and
-                      req.stage_position_id is none %}
+                      req.stage_position_id is none and session['position'] == 'Purchasing' %}
                       <div class="action-group">
                         <button
                           class="btn-icon"
@@ -273,11 +284,26 @@
                           onclick="openCCModal('{{ req.request_id }}')"
                         >
                           <i class="fa-regular fa-envelope"></i>
+                        <button
+                          class="btn-icon btn-icon-ip"
+                          title="Mark In progress"
+                          onclick="markInProgress('{{ req.request_id }}', this)"
+                        >
+                          <i class="fa-solid fa-circle-notch"></i>
                         </button>
                       </div>
+
+                      {% elif req.status_name == "IN PROGRESS" and session['position'] == 'Purchasing' %}
+                      <button
+                        class="btn-link"
+                        onclick="adminMarkCompleted('{{ req.request_id }}')">
+                        <i class="fa-solid fa-file-circle-check"></i>
+                      </button>
+
                       {% else %}
                       <span class="text-muted">-</span>
                       {% endif %}
+
                     </td>
 
                     <td>
@@ -287,10 +313,10 @@
                       >
                       {% else %}
                       <span class="text-muted"
-                        >{{ req.stage_position_name or 'Completed' }}</span
+                        >{{ req.stage_position_name or '-' }}</span
                       >
                       {% endif %} {% set pos_name = (session.get('position') or '')|lower %}
-                      {% if session.get('role') == 'AssistantAdmin' and 'purchasing' in pos_name %}
+                      {% if session.get('role') == 'AssistantAdmin' and 'purchasing' in pos_name  and req.status_name == "PENDING"%}
                         <button
                           class="btn-icon"
                           title="Edit Workflow"
@@ -735,6 +761,8 @@
 
                     <td>
                       <span class="role-badge">
+              
+                        <i class="fa-solid fa-user-clock"></i>
                         {{ type.reviewer_names if type.reviewer_names else
                         'None' }}
                       </span>
@@ -742,6 +770,7 @@
 
                     <td>
                       <span class="role-badge">
+                        <i class="fa-solid fa-user-check"></i>
                         {{ type.approver_names if type.approver_names else
                         'None' }}
                       </span>
@@ -1009,6 +1038,18 @@
       </div>
     </div>
 
+    <div id="confirmModal" class="modal-overlay" style="display:none">
+  <div class="modal-content" style="width:420px">
+    <h3 id="confirmTitle">Confirm</h3>
+    <p id="confirmMessage"></p>
+
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:15px">
+      <button class="btn-secondary" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-danger" id="confirmYesBtn">Yes</button>
+    </div>
+  </div>
+</div>
+
     <!-- APPROVE MODAL -->
     <div id="approveModal" class="modal-overlay" style="display: none">
       <div
@@ -1181,6 +1222,6 @@
     window.IS_PURCHASING =
       {{ 1 if 'purchasing' in ((session.get('position') or '')|lower) else 0 }};
   </script>
-    <script src="/static/admin.js"></script>
+    <script src="/static/admin/admin.js"></script>
   </body>
 </html>

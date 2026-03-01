@@ -24,7 +24,7 @@ body {
   display: flex;
 }
 
-/* ================= SIDEBAR ================= */
+/*  SIDEBAR  */
 
 .sidebar {
   width: 260px;
@@ -98,7 +98,7 @@ body {
   color: white;
 }
 
-/* ================= MAIN ================= */
+/*  MAIN  */
 
 .main-content {
   margin-left: 260px;
@@ -112,7 +112,7 @@ body {
   color: var(--green);
 }
 
-/* ================= HEADER ================= */
+/* HEADER  */
 
 header {
   display: flex;
@@ -130,7 +130,7 @@ header {
   cursor: pointer;
 }
 
-/* ================= CARDS ================= */
+/* CARDS */
 
 .stats-grid {
   display: grid;
@@ -156,7 +156,7 @@ header {
   margin-top: 10px;
 }
 
-/* ================= TABLE ================= */
+/* TABLE */
 
 .table-container {
   margin-top: 25px;
@@ -200,7 +200,7 @@ tr:hover {
   font-size: 12px;
 }
 
-/* ===== TAB SYSTEM (fix: prevent all pages showing at once) ===== */
+/* TAB SYSTEM  prevent all pages showing at once */
 .tab-content {
   display: none;
 }
@@ -209,7 +209,6 @@ tr:hover {
   display: block;
 }
 
-/* optional nice animation */
 .tab-content.active-content {
   animation: fadeIn 0.25s ease;
 }
@@ -225,7 +224,7 @@ tr:hover {
   }
 }
 
-/* ================= FORMS (Account Mgmt) ================= */
+/* Account Management*/
 
 .form-grid {
   display: grid;
@@ -294,7 +293,7 @@ tr:hover {
   filter: brightness(0.97);
 }
 
-/* ================= NOTIFICATIONS ================= */
+/* NOTIFICATIONS */
 
 .notification-list {
   margin-top: 18px;
@@ -345,7 +344,7 @@ tr:hover {
   }
 }
 
-/* ====== FIGMA SIDEBAR HEADER (logo area) ====== */
+/*logo area */
 .sidebar-header {
   padding: 22px 22px 10px;
 }
@@ -381,7 +380,7 @@ tr:hover {
   display: none;
 }
 
-/* ====== FIGMA SIDEBAR FOOTER (bottom user + logout) ====== */
+/* bottom user + logout)  */
 .sidebar-footer {
   margin-top: auto;
   padding: 18px 18px 20px;

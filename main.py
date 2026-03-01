@@ -11,6 +11,8 @@ from flask import (
     flash,
     jsonify,
 )
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
@@ -23,6 +25,8 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from functools import wraps
 from sendotp import send_cc_email_with_blob
 from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 
 import datetime
 import os
@@ -33,10 +37,13 @@ from flask import send_file
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
+
+logger = logging.getLogger(__name__)
 
 # Security / environment
 
@@ -54,15 +61,14 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=int(os.environ.get("PERMANENT_SESSION_LIFETIME", "3600")),
 )
 
-# CSRF protection for HTML forms (Flask-WTF). For JSON APIs, either send CSRF token
-# from the frontend or exempt specific endpoints explicitly.
+# CSRF protection for HTML forms
 try:
     from flask_wtf.csrf import CSRFProtect
     csrf = CSRFProtect(app)
 except Exception:
     csrf = None  
 
-# Rate limiting (optional but recommended). Requires Flask-Limiter.
+# Rate limiting
 try:
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
@@ -71,7 +77,6 @@ except Exception:
     limiter = None
 
 # CORS: allow only your frontend origins (comma-separated).
-# Example: FRONTEND_ORIGINS="http://localhost:5173,https://yourdomain.com"
 FRONTEND_ORIGINS = [o.strip() for o in (os.environ.get("FRONTEND_ORIGINS", "")).split(",") if o.strip()]
 if not FRONTEND_ORIGINS:
     # Safe default for local dev only; set FRONTEND_ORIGINS in production.
@@ -85,11 +90,21 @@ CORS(
 )
 
 # Upload Size Limit
-app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20MB
+app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024 # 20 MB file upload
 # Allowed Upload Types 
 ALLOWED_EXTENSIONS = {"pdf"}
 
 
+#def get_key():
+#    if request.headers.get("Authorization"):
+#        return request.headers.get("Authorization")
+#    return get_remote_address()
+
+
+#limiter = Limiter(
+#    app, key_func=get_remote_address,
+#    default_limits=["200 per day","50 per hour"]
+#)
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -210,12 +225,11 @@ def home():
     role = session.get("role").strip()
     dept = session.get("dept").strip()
     position = session.get("position").strip()
-    print("HOME session role:", repr(role), "dept:", repr(dept), "position:", repr(position))
     
     if dept == "GSD" and role in ["AssistantAdmin", "Admin"]:
         return redirect("/gsd_dashboard")
 
-    elif role in ["Dean", "Reviewer"]:
+    if role in ["Dean", "Reviewer"]:
         print("Working dean route")
         return redirect("/dean")
 
@@ -225,7 +239,7 @@ def home():
     elif role == "IT":
         return redirect("/IT")
     else:
-        print("Reviewer here")
+        flash("Login successful", "success")
         return redirect("/udashboard")
 
 
@@ -368,8 +382,9 @@ def udashboard():
 
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
+    user_id = get_user_id(session["email"])
+
     try:
-        # Fetch Request Types AND Template
         cursor.execute("""
             SELECT request_type_id, type_name, template_filename, template_mode
             FROM request_types
@@ -377,11 +392,48 @@ def udashboard():
         """)
         request_types = cursor.fetchall()
 
-        return render_template("user.html", request_types=request_types)
+        # user table list WITH status
+        cursor.execute("""
+            SELECT
+                r.request_id,
+                rt.type_name,
+                r.filename,
+                s.status_name,
+                r.created_at
+            FROM requests r
+            LEFT JOIN request_types rt ON r.request_type_id = rt.request_type_id
+            LEFT JOIN request_status s ON r.status_id = s.status_id
+            WHERE r.user_id = %s
+            ORDER BY r.request_id DESC
+        """, (user_id,))
+        all_request = cursor.fetchall()
+
+        # CARD COUNTS ONLY
+        cursor.execute("""
+            SELECT
+                SUM(CASE WHEN s.status_name = 'PENDING' THEN 1 ELSE 0 END) AS pending_count,
+                SUM(CASE WHEN s.status_name = 'APPROVED' THEN 1 ELSE 0 END) AS approved_count,
+                SUM(CASE WHEN s.status_name = 'REJECTED' THEN 1 ELSE 0 END) AS rejected_count,
+                SUM(CASE WHEN s.status_name = 'COMPLETED' THEN 1 ELSE 0 END) AS completed_count
+            FROM requests r
+            JOIN request_status s ON r.status_id = s.status_id
+            WHERE r.user_id = %s
+        """, (user_id,))
+        counts = cursor.fetchone() or {}
+
+        return render_template(
+            "user.html", message="Log in Successful",
+            request_types=request_types,
+            all_request=all_request,
+            pending_count=counts.get("pending_count", 0) or 0,
+            approved_count=counts.get("approved_count", 0) or 0,
+            rejected_count=counts.get("rejected_count", 0) or 0,
+            completed_count=counts.get("completed_count", 0) or 0,
+        )
+
     finally:
         cursor.close()
         conn.close()
-
 
 @app.route("/api/user_notifications")
 def get_user_notifications():
@@ -433,6 +485,11 @@ def get_user_notifications():
                 )
                 notif["type"] = "error"
                 notif["icon"] = "x-circle"
+                
+            elif status_lower == "completed":
+                notif["message"] = "Your request has been completed successfully."
+                notif["type"] = "success"
+                notif["icon"] = "check-circle"
             else:
                 notif["message"] = (
                     f"Currently being reviewed by: {req['current_stage']}"
@@ -499,15 +556,17 @@ def api_activity_logs():
         conn.close()
 
 
+
 @app.route("/gsd_dashboard")
 def gsdh_dashboard():
     if "email" not in session:
         return redirect(url_for("login"))
 
-    # must have position_id for routing
     position_id = session.get("position_id")
     if not position_id:
         return redirect("/")
+
+    position_id = int(position_id)
 
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
@@ -521,9 +580,8 @@ def gsdh_dashboard():
         """)
         inventory_items = cursor.fetchall()
 
-        # Requests assigned to THIS GSD Head (position_id)
-        cursor.execute(
-            """
+        # Requests assigned to THIS position (PENDING only)
+        cursor.execute("""
             SELECT 
                 r.request_id,
                 r.filename,
@@ -537,62 +595,58 @@ def gsdh_dashboard():
             LEFT JOIN departments d ON u.dept_id = d.dept_id
             JOIN request_status s ON r.status_id = s.status_id
             LEFT JOIN request_types rt ON r.request_type_id = rt.request_type_id
-            WHERE s.status_name = 'PENDING'
-            AND r.stage_position_id = %s
+            WHERE r.stage_position_id = %s
             ORDER BY r.created_at DESC
             LIMIT 50
-        """,
-            (position_id,),
-        )
+            """, (position_id,))
         recent_requests = cursor.fetchall()
-        
-        cursor.execute(
-            """
+
+                # Pending count (assigned to THIS position)
+        cursor.execute("""
             SELECT COUNT(*) AS count
             FROM requests r
             JOIN request_status s ON r.status_id = s.status_id
             WHERE s.status_name = 'PENDING'
             AND r.stage_position_id = %s
-            """,
-            (position_id,),
-        )
+        """, (position_id,))
         pending_count = cursor.fetchone()["count"]
 
-        # Per-position totals (who actually clicked approve/reject)
-        cursor.execute(
-            """
-            SELECT COUNT(*) AS count
+        # Total approved by THIS position (actions)
+        cursor.execute("""
+            SELECT COUNT(DISTINCT request_id) AS count
             FROM request_actions
             WHERE actor_position_id = %s AND action = 'APPROVED'
-            """,
-            (position_id,),
-        )
+        """, (position_id,))
         approved_count = cursor.fetchone()["count"]
 
-        cursor.execute(
-            """
-            SELECT COUNT(*) AS count
+        # Total rejected by THIS position (actions)
+        cursor.execute("""
+            SELECT COUNT(DISTINCT request_id) AS count
             FROM request_actions
             WHERE actor_position_id = %s AND action = 'REJECTED'
-            """,
-            (position_id,),
-        )
+        """, (position_id,))
         rejected_count = cursor.fetchone()["count"]
 
-        cursor.execute(
-            """
-            SELECT COUNT(*) AS count
+        # Approvals today by THIS position
+        cursor.execute("""
+            SELECT COUNT(DISTINCT request_id) AS count
             FROM request_actions
             WHERE actor_position_id = %s
             AND action = 'APPROVED'
             AND DATE(created_at) = CURDATE()
-            """,
-            (position_id,),
-        )
+        """, (position_id,))
         approvals_today = cursor.fetchone()["count"]
 
-        # counts
-        pending_count = len(recent_requests)
+        # Completed count (requests completed that were handled by THIS position)
+        cursor.execute("""
+            SELECT COUNT(DISTINCT r.request_id) AS count
+            FROM requests r
+            JOIN request_status s ON r.status_id = s.status_id
+            JOIN request_actions ra ON ra.request_id = r.request_id
+            WHERE s.status_name = 'COMPLETED'
+            AND ra.actor_position_id = %s
+        """, (position_id,))
+        completed_count = cursor.fetchone()["count"]
 
         return render_template(
             "gsddashboard.html",
@@ -602,11 +656,11 @@ def gsdh_dashboard():
             approved_count=approved_count,
             rejected_count=rejected_count,
             approvals_today=approvals_today,
+            completed_count=completed_count,
         )
     finally:
         cursor.close()
         conn.close()
-
 
 @app.post("/api/inventory")
 def inv_add():
@@ -745,21 +799,41 @@ def admin_dashboard():
             (position_id,),
         )
         approvals_today = cursor.fetchone()["count"]
+        
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS count 
+            FROM requests r
+            JOIN request_status s ON r.status_id = s.status_id
+            WHERE s.status_name = 'IN PROGRESS'
+            """,
+        )
+        in_progress = cursor.fetchone()["count"]
+        
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM requests r
+            JOIN request_status s ON r.status_id = s.status_id
+            WHERE s.status_name = 'COMPLETED'
+            """,
+        )
+        completed = cursor.fetchone()["count"]
 
         cursor.execute("SELECT COUNT(*) as count FROM users")
         total_users = cursor.fetchone()["count"]
 
         position_id = int(session.get("position_id") or 0)
 
-        # Get position name from session (you already store it as session['position'] in sidebar)
+        # Get position name from session
         position_name = (session.get("position") or "").strip().lower()
         is_purchasing = (
             "purchasing" in position_name
-        )  # allows "Purchasing Officer", etc.
+        )  
 
-        # --- Recent requests list ---
-        # - Normal positions: show requests assigned to me (pending) OR requests I already acted on
-        # - Purchasing: show ALL requests
+        # Recent requests list
+        # Purchasing: show ALL requests
+        # other only show thier assign
         recent_sql = """
             SELECT
             r.request_id,
@@ -885,7 +959,9 @@ def admin_dashboard():
             pending_count=pending_count,
             approved_count=approved_count,
             rejected_count=rejected_count,
+            completed=completed,
             total_users=total_users,
+            in_progress=in_progress,
             recent_requests=recent_requests,
             my_requests=my_requests,
             positions=positions,
@@ -939,7 +1015,7 @@ def get_request_workflow(request_id):
         )
         rev = [row["position_id"] for row in cursor.fetchall()]
 
-        # if no override, fallback to request_type reviewers
+        #  fallback to request_type reviewers
         if not rev:
             cursor.execute(
                 """
@@ -964,7 +1040,7 @@ def get_request_workflow(request_id):
         )
         app = [row["position_id"] for row in cursor.fetchall()]
 
-        # if no override, fallback to request_type approvers
+        # fallback to request_type approvers
         if not app:
             cursor.execute(
                 """
@@ -1076,8 +1152,7 @@ def update_request_workflow(request_id):
     finally:
         cursor.close()
         conn.close()
-
-
+        
 @app.route("/add_request_type", methods=["POST"])
 def add_request_type():
     if "email" not in session:
@@ -1087,33 +1162,58 @@ def add_request_type():
     if role not in ["Admin", "AssistantAdmin", "SuperAdmin"]:
         return redirect("/")
 
-    type_name = request.form.get("type_name", "").strip()
+    type_name = (request.form.get("type_name") or "").strip()
     reviewer_ids = request.form.getlist("reviewer_position_ids[]")
     approver_ids = request.form.getlist("approver_position_ids[]")
+
+    # Template mode 
+    template_mode = (request.form.get("template_mode") or "FILLABLE").upper()
+    if template_mode not in ("FILLABLE", "DOWNLOAD"):
+        template_mode = "FILLABLE"
 
     if not type_name:
         flash("Request type name is required.", "danger")
         return redirect(url_for("admin_dashboard"))
 
-    # TEMPLATE
+    # require at least one approver
+    if not approver_ids or all((not x) for x in approver_ids):
+        flash("At least one approver is required.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    # TEMPLATE FILE (PDF)
     tpl = request.files.get("template_file")
     template_filename = None
     template_blob = None
+
     if tpl and tpl.filename:
         if not allowed_file(tpl.filename):
             flash("Template must be PDF only.", "danger")
             return redirect(url_for("admin_dashboard"))
 
+        template_filename = secure_filename(tpl.filename)
+        template_blob = tpl.read()
+
+        # Optional: basic PDF signature check
+        if template_blob and not template_blob.startswith(b"%PDF-"):
+            flash("Invalid PDF template file.", "danger")
+            return redirect(url_for("admin_dashboard"))
+
+    # If DOWNLOAD mode
+    if template_mode == "DOWNLOAD" and not template_blob:
+        flash("Download mode requires uploading a PDF template.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
     conn = get_connection()
     cursor = conn.cursor()
+
     try:
-        # Insert request type WITH TEMPLATE
+        # Insert request type WITH template + mode
         cursor.execute(
             """
-            INSERT INTO request_types (type_name, template_filename, template_file)
-            VALUES (%s, %s, %s)
+            INSERT INTO request_types (type_name, template_filename, template_file, template_mode)
+            VALUES (%s, %s, %s, %s)
             """,
-            (type_name, template_filename, template_blob),
+            (type_name, template_filename, template_blob, template_mode),
         )
         new_type_id = cursor.lastrowid
 
@@ -1166,7 +1266,7 @@ def create_request():
     filename = None
     file_blob = None
 
-    # ✅ optional upload
+    #  upload
     if file and file.filename:
         # PDF-only checks
         if not allowed_file(file.filename) or file.mimetype != "application/pdf":
@@ -1178,7 +1278,7 @@ def create_request():
 
         filename = secure_filename(file.filename)
         file_blob = file.read()
-                # Basic PDF signature check (prevents obvious non-PDF uploads)
+                # Basic PDF signature check 
         if file_blob and not file_blob.startswith(b"%PDF-"):
             msg = "Invalid PDF file."
             if request.headers.get("X-Requested-With") == "fetch":
@@ -1228,7 +1328,7 @@ def create_request():
         """, (user_id, request_type_id, filename, file_blob, stage_position_id))
         conn.commit()
 
-        # ✅ return JSON for fetch
+        # return JSON for fetch
         if request.headers.get("X-Requested-With") == "fetch":
             return jsonify({"success": True, "request_id": cursor.lastrowid}), 200
 
@@ -1249,10 +1349,11 @@ def create_request():
 
 
 # Download template
+from flask import Response
 @app.route("/download_attachment/<int:request_id>")
 def download_attachment(request_id):
     if "email" not in session:
-        return redirect("/login")
+        return Response("Unauthorized", status=401, mimetype="text/plain")
 
     role = session.get("role")
     user_id = session.get("user_id")
@@ -1274,8 +1375,8 @@ def download_attachment(request_id):
         row = cursor.fetchone()
 
         if not row or not row.get("attachment"):
-            flash("No attachment found for this request.", "warning")
-            return redirect(request.referrer or "/admin")
+            return Response("No attachment found", status=404, mimetype="text/plain")
+
 
         allowed = False
 
@@ -1300,7 +1401,8 @@ def download_attachment(request_id):
             allowed = True
 
         if not allowed:
-            return "Access Denied", 403
+            return Response("Access Denied", status=403, mimetype="text/plain")
+
 
         pdf_bytes = row["signed_pdf"] or row["attachment"]
         # View in browser
@@ -1353,7 +1455,7 @@ def save_annotations(request_id):
     if not isinstance(annotations, list):
         return jsonify({"error": "Invalid annotations"}), 400
 
-    # (Optional) limit count for safety
+    #  limit count for safety
     if len(annotations) > 200:
         return jsonify({"error": "Too many items"}), 400
 
@@ -1444,7 +1546,6 @@ def annotate_page(request_id):
     if "email" not in session:
         return redirect("/login")
 
-    # You can reuse the SAME permission logic as download_attachment
     role = session.get("role")
     user_id = session.get("user_id")
     position_id = session.get("position_id")
@@ -1512,8 +1613,7 @@ def annotate_request(request_id):
     if who not in ("reviewer", "approver"):
         return jsonify({"error": "Invalid who"}), 400
 
-    # Optional: Only allow reviewer/approver roles or those currently assigned
-    # (Adjust to your workflow rules)
+
     if role not in (
         "Admin",
         "SuperAdmin",
@@ -1629,7 +1729,7 @@ def annotate_request(request_id):
                 }
             )
 
-        # page 0, approver signature/date/note
+        # approver signature/date/note
         if a.get("approver_note"):
             text_items.append(
                 {"page": 0, "x": 120, "y": 25, "text": a["approver_note"], "font": 9}
@@ -1866,7 +1966,6 @@ def get_it_stats():
         cursor.execute("SELECT COUNT(*) as count FROM departments")
         total_depts = cursor.fetchone()["count"]
 
-        # If you don't track sessions server-side, avoid claiming accuracy.
         active_sessions = None
 
         return jsonify({
@@ -1999,6 +2098,11 @@ def update_request_status(request_id):
     cursor = conn.cursor(dictionary=True)
 
     try:
+        
+        new_status = (data.get("status") or "").strip()
+        if new_status.lower() in ("inprogress", "in_progress", "in progress"):
+            new_status = "IN PROGRESS"
+            
         # Get Status ID
         cursor.execute(
             "SELECT status_id FROM request_status WHERE status_name = %s",
@@ -2023,7 +2127,38 @@ def update_request_status(request_id):
         )
         _stage_row = cursor.fetchone()
         current_stage_before = _stage_row["stage_position_id"] if _stage_row else None
+        
+        # IN PROGRESS
+        if new_status.lower() == "in progress":
+            cursor.execute(
+                """
+                UPDATE requests
+                SET status_id = %s
+                WHERE request_id = %s
+                """,
+                (status_id, request_id),
+            )
+
+            try:
+                cursor.execute(
+                    "INSERT INTO request_actions (request_id, actor_user_id, actor_position_id, actor_email, action, message) "
+                    "VALUES (%s, %s, %s, %s, 'IN_PROGRESS', NULL)",
+                    (request_id, actor_user_id, actor_position_id, actor_email),
+                )
+                cursor.execute(
+                    "INSERT INTO activity_logs (title, description) VALUES (%s, %s)",
+                    (
+                        "Marked In Progress",
+                        f"REQ#{request_id} marked in progress by {actor_email or 'user'} (pos_id={actor_position_id}).",
+                    ),
+                )
+            except Exception as _log_err:
+                print("request_actions log error:", _log_err)
+
+            conn.commit()
+            return jsonify({"message": "Request marked as IN PROGRESS"})
         # If REJECTED mark rejected immediately
+        
         if (new_status or "").lower() == "rejected":
             cursor.execute(
                 """
@@ -2034,7 +2169,7 @@ def update_request_status(request_id):
                 (status_id, rejection_msg, request_id),
             )
 
-            # log action (for per-position stats/history)
+            # log action 
             try:
                 cursor.execute(
                     "INSERT INTO request_actions (request_id, actor_user_id, actor_position_id, actor_email, action, message) "
@@ -2176,7 +2311,7 @@ def update_request_status(request_id):
                     (status_id, request_id),
                 )
                 conn.commit()
-                return jsonify({"message": "Request fully approved."})
+                return jsonify({"message": "Request fully approved. Completed"})
 
         # Fallback: set status as requested
         cursor.execute(
@@ -2203,7 +2338,6 @@ def update_request_status(request_id):
 @role_required("IT", "SuperAdmin")
 
 def update_user_role():
-    """Update a user's role/position/department (IT-only)."""
     payload = request.get_json(silent=True) or {}
     user_id = payload.get("user_id")
     new_role = (payload.get("role") or "").strip()
@@ -2405,7 +2539,7 @@ def api_requests():
                         r.stage_position_id,
                         p.position_name,
                         CASE
-                        WHEN rs.status_name = 'APPROVED' AND r.stage_position_id IS NULL THEN 'Completed'
+                        WHEN rs.status_name = 'APPROVED' AND r.stage_position_id IS NULL THEN '-'
                         WHEN rs.status_name = 'REJECTED' THEN '-'
                         WHEN r.stage_position_id IS NULL AND rs.status_name = 'PENDING' THEN 'Waiting for Assignment'
 
@@ -2467,7 +2601,7 @@ def api_requests():
 
             stage_position_id = approver["position_id"]
 
-            # Get 'PENDING' Status ID
+            # Get PENDING Status ID
             cursor.execute(
                 "SELECT status_id FROM request_status WHERE status_name='PENDING'"
             )
@@ -2502,6 +2636,247 @@ def api_requests():
             cursor.close()
             conn.close()
 
+@app.route("/api/request/<int:request_id>/complete", methods=["POST"])
+def mark_request_completed(request_id):
+
+    if "email" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Get request owner + current status
+        cursor.execute("""
+            SELECT r.user_id, s.status_name
+            FROM requests r
+            JOIN request_status s ON r.status_id = s.status_id
+            WHERE r.request_id=%s
+        """, (request_id,))
+        req = cursor.fetchone()
+
+        if not req:
+            return jsonify({"error": "Request not found"}), 404
+
+        user_id = session.get("user_id")
+
+        # ONLY OWNER CAN COMPLETE
+        if req["user_id"] != user_id:
+            return jsonify({"error": "Only requester can complete"}), 403
+
+        #  must be IN PROGRESS first
+        if (req["status_name"] or "").upper() != "IN PROGRESS":
+            return jsonify({"error": "Request not in progress"}), 400
+
+        # get COMPLETED status id
+        cursor.execute("""
+            SELECT status_id FROM request_status
+            WHERE status_name='COMPLETED'
+        """)
+        status_id = cursor.fetchone()["status_id"]
+
+        # update request
+        cursor.execute("""
+            UPDATE requests
+            SET status_id=%s,
+                stage_position_id=NULL
+            WHERE request_id=%s
+        """, (status_id, request_id))
+
+        # activity log
+        cursor.execute("""
+            INSERT INTO request_actions
+            (request_id, actor_user_id, actor_position_id, actor_email, action)
+            VALUES (%s,%s,%s,%s,'COMPLETED')
+        """, (
+            request_id,
+            session.get("user_id"),
+            session.get("position_id"),
+            session.get("email"),
+        ))
+
+        conn.commit()
+
+        return jsonify({"message": "Request marked as COMPLETED"})
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+@app.route("/api/request/<int:request_id>/admin-complete", methods=["POST"])
+def admin_complete_request(request_id):
+    if "email" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    role = (session.get("role") or "").strip()
+    pos_name = (session.get("position") or "").strip().lower()
+    is_purchasing = ("purchasing" in pos_name)
+
+    # allow Admin/AssistantAdmin/SuperAdmin + Purchasing
+    if role not in ["Admin", "AssistantAdmin", "SuperAdmin"] and not is_purchasing:
+        return jsonify({"error": "Forbidden"}), 403
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        # must be IN PROGRESS
+        cur.execute("""
+            SELECT r.request_id, s.status_name
+            FROM requests r
+            JOIN request_status s ON r.status_id = s.status_id
+            WHERE r.request_id = %s
+            LIMIT 1
+        """, (request_id,))
+        req = cur.fetchone()
+        if not req:
+            return jsonify({"error": "Request not found"}), 404
+
+        if (req["status_name"] or "").upper() != "IN PROGRESS":
+            return jsonify({"error": "Request must be IN PROGRESS first"}), 400
+
+        # inside admin_complete_request(request_id), after you verify IN PROGRESS...
+
+        # get PENDING_USER status id
+        cur.execute("""
+            SELECT status_id FROM request_status
+            WHERE status_name = 'PENDING_USER'
+            LIMIT 1
+        """)
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "Status PENDING_USER not configured"}), 500
+        pending_id = row["status_id"]
+
+        # update request -> waiting for user confirmation
+        cur.execute("""
+            UPDATE requests
+            SET status_id=%s
+            WHERE request_id=%s
+        """, (pending_id, request_id))
+
+        cur.execute("""
+            UPDATE requests
+            SET status_id=%s,
+                stage_position_id=NULL
+            WHERE request_id=%s
+        """, (pending_id, request_id))
+        # insert admin completion marker
+        cur.execute("""
+            INSERT INTO request_actions
+                (request_id, actor_user_id, actor_position_id, actor_email, action, message)
+            VALUES (%s, %s, %s, %s, 'ADMIN_COMPLETED', NULL)
+        """, (
+            request_id,
+            session.get("user_id"),
+            session.get("position_id"),
+            session.get("email"),
+        ))
+
+        # optional activity log (same style you use elsewhere)
+        try:
+            cur.execute(
+                "INSERT INTO activity_logs (title, description) VALUES (%s, %s)",
+                (
+                    "Admin Completed",
+                    f"REQ#{request_id} marked admin-completed by {session.get('email')} (pos_id={session.get('position_id')}).",
+                ),
+            )
+        except Exception as _:
+            pass
+
+        conn.commit()
+        return jsonify({"message": "Admin marked completed. Waiting for user confirmation."})
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+        
+        
+@app.route("/api/request/<int:request_id>/user-complete", methods=["POST"])
+def user_complete_request(request_id):
+    if "email" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    user_id = get_user_id(session["email"])
+
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        # check owner + current status
+        cur.execute("""
+            SELECT r.user_id, s.status_name
+            FROM requests r
+            JOIN request_status s ON r.status_id = s.status_id
+            WHERE r.request_id = %s
+            LIMIT 1
+        """, (request_id,))
+        req = cur.fetchone()
+        if not req:
+            return jsonify({"error": "Request not found"}), 404
+
+        if req["user_id"] != user_id:
+            return jsonify({"error": "Only requester can complete"}), 403
+
+        if (req["status_name"] or "").upper() != "PENDING_USER":
+            return jsonify({"error": "Request is not waiting for user confirmation"}), 400
+        # require admin-completed marker
+        cur.execute("""
+            SELECT 1
+            FROM request_actions
+            WHERE request_id = %s AND action = 'ADMIN_COMPLETED'
+            LIMIT 1
+        """, (request_id,))
+        if not cur.fetchone():
+            return jsonify({"error": "Admin has not marked completed yet"}), 400
+
+        # set final COMPLETED status
+        cur.execute("""
+            SELECT status_id
+            FROM request_status
+            WHERE status_name = 'COMPLETED'
+            LIMIT 1
+        """)
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "COMPLETED status missing in DB"}), 400
+        completed_id = row["status_id"]
+
+        cur.execute("""
+            UPDATE requests
+            SET status_id = %s, stage_position_id = NULL
+            WHERE request_id = %s
+        """, (completed_id, request_id))
+
+        # log
+        cur.execute("""
+            INSERT INTO request_actions
+                (request_id, actor_user_id, actor_position_id, actor_email, action, message)
+            VALUES (%s, %s, %s, %s, 'COMPLETED', NULL)
+        """, (
+            request_id,
+            session.get("user_id"),
+            session.get("position_id"),
+            session.get("email"),
+        ))
+
+        conn.commit()
+        return jsonify({"message": "Request COMPLETED"})
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route("/api/request/<int:request_id>/cc", methods=["POST"])
 def cc_completed_request(request_id):
@@ -2529,28 +2904,28 @@ def cc_completed_request(request_id):
     cursor = conn.cursor(dictionary=True)
     try:
         # allow only Admin/AssistantAdmin recipients
-        placeholders = ",".join(["%s"] * len(to_emails))
-        cursor.execute(
-            f"""
-            SELECT LOWER(u.email) AS email
-            FROM users u
-            JOIN roles r ON u.role_id = r.role_id
-            WHERE LOWER(u.email) IN ({placeholders})
-            AND r.role_name IN ('Admin','AssistantAdmin')
-        """,
-            tuple(to_emails),
-        )
-        allowed_rows = cursor.fetchall()
-        allowed_set = set([row["email"] for row in allowed_rows])
+       # placeholders = ",".join(["%s"] * len(to_emails))
+       # cursor.execute(
+        #    f"""
+         #   SELECT LOWER(u.email) AS email
+          #  FROM users u
+           # JOIN roles r ON u.role_id = r.role_id
+            #WHERE LOWER(u.email) IN ({placeholders})
+          #  AND r.role_name IN ('Admin','AssistantAdmin')
+        #""",
+         #   tuple(to_emails),
+        #)
+        #allowed_rows = cursor.fetchall()
+        #allowed_set = set([row["email"] for row in allowed_rows])
 
-        not_allowed = [e for e in to_emails if e not in allowed_set]
-        if not_allowed:
-            return (
-                jsonify(
-                    {"error": f"Not allowed recipient(s): {', '.join(not_allowed)}"}
-                ),
-                400,
-            )
+        #not_allowed = [e for e in to_emails if e not in allowed_set]
+        #if not_allowed:
+        #    return (
+         #       jsonify(
+          #          {"error": f"Not allowed recipient(s): {', '.join(not_allowed)}"}
+           #     ),
+            #    400,
+            #)
 
         # fetch request + attachment blob
         cursor.execute(
@@ -2601,6 +2976,7 @@ def cc_completed_request(request_id):
             f"Created At: {req.get('created_at')}\n\n"
             f"Note:\n{note if note else '-'}\n\n"
             f"This is an automated message. Do not reply."
+            
         )
 
         sent, failed = [], []
@@ -2819,6 +3195,7 @@ def signup():
 
 # web login
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("5/minute")
 def login():
     if request.method == "POST":
         e = request.form["email"].strip().lower()
@@ -2849,8 +3226,11 @@ def login():
                 session["position_id"] = user["position_id"]
                 session["dept"] = user["dept_name"]
                 return redirect("/")
+            
             else:
+                jsonify({"message": "Login attept"})
                 return render_template("login.html", message="Invalid credentials")
+                
         finally:
             cursor.close()
             conn.close()
@@ -3028,11 +3408,7 @@ def logout():
     return redirect("/login")
 
 
-# -----------------------------
-# PDF TEMPLATE OVERLAY UTILITIES
-# (Safe: functions only; nothing runs on import)
-# Requires: pip install reportlab pypdf
-# -----------------------------
+
 from reportlab.pdfgen import canvas as _rl_canvas
 from reportlab.lib.utils import ImageReader as _ImageReader
 from pypdf import PdfReader as _PdfReader, PdfWriter as _PdfWriter
@@ -3218,5 +3594,5 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", "5000")),
-        debug=(os.environ.get("FLASK_DEBUG", "false").lower() == "true"),
+        debug=(os.environ.get("FLASK_DEBUG", "true").lower() == "true"),
     ) 

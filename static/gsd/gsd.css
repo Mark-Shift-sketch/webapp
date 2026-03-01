@@ -1,0 +1,251 @@
+#shipmentTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 13px;
+}
+
+#shipmentTable thead th {
+  text-align: left;
+  font-weight: 600;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  padding: 10px;
+  white-space: nowrap;
+}
+
+#shipmentTable tbody td {
+  border: 1px solid #e5e7eb;
+  padding: 6px;
+  vertical-align: middle;
+}
+
+#shipmentTable tbody tr:hover {
+  background: #f9fafb;
+}
+
+#sendModal .table-wrapper {
+  overflow-x: auto;
+}
+
+/* Inputs inside table cells */
+#shipmentTable .tbl-in {
+  width: 100%;
+  height: 34px;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  outline: none;
+  background: #fff;
+}
+
+#shipmentTable .tbl-in:focus {
+  border-color: #9ca3af;
+}
+
+/* Action cell button align */
+#shipmentTable td.text-right {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+/* Full window modal */
+.modal-window {
+  width: min(1200px, 98vw);
+  height: min(760px, 92vh);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-topbar {
+  padding: 16px 18px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.icon-close {
+  border: 0;
+  background: #f3f4f6;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+#sendForm {
+  padding: 16px 18px;
+  overflow: auto;
+}
+
+/* Form grid */
+.send-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.send-grid .form-group label {
+  font-size: 12px;
+  color: #374151;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.send-grid input,
+.send-grid select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  outline: none;
+}
+
+/* Items header row */
+.items-header {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Modal footer */
+.modal-footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .send-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.qty {
+  font-weight: 600;
+}
+.qty-low {
+  color: #dc2626;
+}
+.qty-ok {
+  color: #111827;
+}
+
+/* --- Send Copy modal layout --- */
+.sendcopy-top {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sendcopy-top .form-group label,
+.sendcopy-grid .form-group label {
+  font-size: 12px;
+  color: #374151;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.sendcopy-top input,
+.sendcopy-grid input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  outline: none;
+}
+
+.sendcopy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .sendcopy-top {
+    grid-template-columns: 1fr;
+  }
+  .sendcopy-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tabs */
+.sc-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  margin: 8px 0 12px;
+}
+
+.sc-tab {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.sc-tab.active {
+  border-color: #9ca3af;
+  background: #f3f4f6;
+}
+
+/* Send Copy table - normal grid */
+#sendCopyTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 13px;
+}
+
+#sendCopyTable thead th {
+  text-align: left;
+  font-weight: 600;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  padding: 10px;
+  white-space: nowrap;
+}
+
+#sendCopyTable tbody td {
+  border: 1px solid #e5e7eb;
+  padding: 6px;
+  vertical-align: middle;
+}
+
+#sendCopyTable .tbl-in {
+  width: 100%;
+  height: 34px;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  outline: none;
+  background: #fff;
+}

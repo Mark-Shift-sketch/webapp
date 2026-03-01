@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
   <head>
+     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IT Administration Dashboard</title>
@@ -137,6 +138,7 @@
             <h3>Create New Account</h3>
             <br />
             <form action="{{ url_for('create_user') }}" method="POST">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="form-group">
                 <label>Email Address</label>
                 <input
@@ -196,6 +198,7 @@
             <h3>Add Department</h3>
             <br />
             <form action="{{ url_for('create_dept') }}" method="POST">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="form-group">
                 <label>Department Name</label>
                 <input
@@ -213,6 +216,7 @@
             <h3>Add Role</h3>
             <br />
             <form action="{{ url_for('create_role') }}" method="POST">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="form-group">
                 <label>Role Name</label>
                 <input
@@ -230,6 +234,7 @@
             <h3>Add Position</h3>
             <br />
             <form action="{{ url_for('create_position') }}" method="POST">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="form-group">
                 <label>Position Name</label>
                 <input
