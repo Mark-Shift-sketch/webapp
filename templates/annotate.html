@@ -862,6 +862,8 @@
 
       function clearSigCanvas() {
         sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+        sigCtx.fillStyle = "#fff";
+        sigCtx.fillRect(0, 0, sigCanvas.width, sigCanvas.height);
         sigCtx.strokeStyle = "#111827";
         sigCtx.lineWidth = 3;
         sigCtx.lineCap = "round";

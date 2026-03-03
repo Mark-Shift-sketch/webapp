@@ -929,3 +929,91 @@ select[multiple] {
     border: none;
     cursor: pointer;
 }
+
+/* SETTINGS VIEW */
+#view-settings {
+  display: none;
+}
+
+/* Header */
+.top-header {
+  margin-bottom: 20px;
+}
+
+.header-title h2 {
+  margin: 0;
+}
+
+.header-title p {
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+/* Scroll Area */
+.content-scroll {
+  overflow-y: auto;
+}
+
+/* Card */
+.card-container {
+  max-width: 700px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+/* Card Header */
+.table-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.table-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.table-title h3 {
+  margin: 0;
+}
+
+/* Card Body */
+.card-body {
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Form */
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label {
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+/* Inputs */
+.form-control {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+}
+
+/* Readonly input */
+.readonly-input {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+/* Info Text */
+.info-text {
+  margin-top: 18px;
+  font-size: 13px;
+  color: #6b7280;
+}

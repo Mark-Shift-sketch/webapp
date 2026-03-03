@@ -12,9 +12,20 @@
       rel="stylesheet"
       href="{{ url_for('static', filename='fonts/css/all.min.css') }}"
     />
+    <script src="{{ url_for('static', filename='user/sweetalert.js') }}"></script>
+    <script src="{{ url_for('static', filename='alltoast/toast.js') }}"></script>
   </head>
 
   <body>
+    <div id="flash-messages" style="display:none;">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div data-category="{{ category }}" data-message="{{ message }}"></div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+    </div>
     <!--SIDEBAR -->
     <aside class="sidebar">
       <div class="sidebar-header">
@@ -279,66 +290,46 @@
       </div>
 
       <!-- Settings -->
-      <div id="view-settings" class="view-section" style="display: none">
-        <header class="top-header">
-          <div class="header-title">
-            <h2>Settings</h2>
-            <p>Welcome back, {{ session['email'] }}</p>
-          </div>
-        </header>
+      <div id="view-settings" class="view-section">
+  <header class="top-header">
+    <div class="header-title">
+      <h2>Settings</h2>
+      <p>Welcome back, {{ session['email'] }}</p>
+    </div>
+  </header>
 
-        <div class="content-scroll custom-scrollbar">
-          <div class="card-container" style="max-width: 700px; margin: 0 auto">
-            <div class="table-header">
-              <div
-                class="table-title"
-                style="display: flex; align-items: center; gap: 10px"
-              >
-                <i class="fa-regular fa-user"></i>
-                <h3 style="margin: 0">Personal Information</h3>
-              </div>
-            </div>
-
-            <div style="padding: 24px 20px">
-              <div style="display: flex; flex-direction: column; gap: 18px">
-                <div>
-                  <label class="form-label">Email</label>
-                  <input
-                    id="pi_email"
-                    class="form-control"
-                    readonly
-                    style="background: #f3f4f6; cursor: not-allowed"
-                  />
-                </div>
-
-                <div>
-                  <label class="form-label">Department</label>
-                  <input
-                    id="pi_dept"
-                    class="form-control"
-                    readonly
-                    style="background: #f3f4f6; cursor: not-allowed"
-                  />
-                </div>
-
-                <div>
-                  <label class="form-label">Position Role</label>
-                  <input
-                    id="pi_position"
-                    class="form-control"
-                    readonly
-                    style="background: #f3f4f6; cursor: not-allowed"
-                  />
-                </div>
-              </div>
-
-              <div style="margin-top: 18px; font-size: 13px; color: #6b7280">
-                Information managed by IT department.
-              </div>
-            </div>
-          </div>
+  <div class="content-scroll custom-scrollbar">
+    <div class="card-container">
+      <div class="table-header">
+        <div class="table-title">
+          <i class="fa-regular fa-user"></i>
+          <h3>Personal Information</h3>
         </div>
       </div>
+
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input id="pi_email" class="form-control readonly-input" readonly />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <input id="pi_dept" class="form-control readonly-input" readonly />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Position Role</label>
+          <input id="pi_position" class="form-control readonly-input" readonly />
+        </div>
+
+        <div class="info-text">
+          Information managed by IT department.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
     </main>
     <script src="/static/dean/dean.js"></script>
   </body>

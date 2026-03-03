@@ -1,4 +1,3 @@
-from copy import Error
 import json
 import logging
 from flask import (
@@ -26,6 +25,9 @@ from functools import wraps
 from sendotp import send_cc_email_with_blob
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
+from reportlab.pdfgen import canvas as _rl_canvas
+from reportlab.lib.utils import ImageReader as _ImageReader
+from pypdf import PdfReader as _PdfReader, PdfWriter as _PdfWriter
 
 
 import datetime
@@ -34,16 +36,15 @@ import re
 import base64
 from io import BytesIO
 from flask import send_file
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv()
 
-
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-
-logger = logging.getLogger(__name__)
 
 # Security / environment
 
@@ -57,7 +58,7 @@ serializer = URLSafeTimedSerializer(app.secret_key)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE=os.environ.get("SESSION_COOKIE_SAMESITE", "Lax"),
-    SESSION_COOKIE_SECURE=(os.environ.get("SESSION_COOKIE_SECURE", "true").lower() == "true"),
+    SESSION_COOKIE_SECURE=(os.environ.get("SESSION_COOKIE_SECURE", "true").lower() == "false"),
     PERMANENT_SESSION_LIFETIME=int(os.environ.get("PERMANENT_SESSION_LIFETIME", "3600")),
 )
 
@@ -76,17 +77,23 @@ try:
 except Exception:
     limiter = None
 
-# CORS: allow only your frontend origins (comma-separated).
+
 FRONTEND_ORIGINS = [o.strip() for o in (os.environ.get("FRONTEND_ORIGINS", "")).split(",") if o.strip()]
 if not FRONTEND_ORIGINS:
-    # Safe default for local dev only; set FRONTEND_ORIGINS in production.
-    FRONTEND_ORIGINS = ["http://localhost:5000", "http://127.0.0.1:5000"]
-
+    FRONTEND_ORIGINS = [
+        "http://localhost",
+        "http://127.0.0.1",
+    ]
 CORS(
     app,
-    resources={r"/api/*": {"origins": FRONTEND_ORIGINS}},
+    resources={r"/api/*": {"origins": [
+        r"^http://localhost(:\d+)?$",
+        r"^http://127\.0\.0\.1(:\d+)?$",
+        r"^http://192\.168\.0\.102(:\d+)?$",
+    ]}},
     supports_credentials=True,
     allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 )
 
 # Upload Size Limit
@@ -227,16 +234,19 @@ def home():
     position = session.get("position").strip()
     
     if dept == "GSD" and role in ["AssistantAdmin", "Admin"]:
+        flash("Login successful", "success")
         return redirect("/gsd_dashboard")
 
-    if role in ["Dean", "Reviewer"]:
-        print("Working dean route")
+    elif role in ["Dean", "Reviewer"]:
+        flash("Login successful", "success")
         return redirect("/dean")
 
     elif role in ["Admin", "AssistantAdmin", "SuperAdmin"]:
+        flash("Login successful", "success")
         return redirect("/admin")
 
     elif role == "IT":
+        flash("Login successful", "success")
         return redirect("/IT")
     else:
         flash("Login successful", "success")
@@ -408,7 +418,7 @@ def udashboard():
         """, (user_id,))
         all_request = cursor.fetchall()
 
-        # CARD COUNTS ONLY
+        # CARD COUNTS
         cursor.execute("""
             SELECT
                 SUM(CASE WHEN s.status_name = 'PENDING' THEN 1 ELSE 0 END) AS pending_count,
@@ -555,6 +565,63 @@ def api_activity_logs():
         cur.close()
         conn.close()
 
+@app.route("/api/user_dashboard", methods=["GET", "OPTIONS"])
+def api_user_dashboard():
+    if "email" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    user_id = get_user_id(session["email"])
+
+    try:
+        cursor.execute("""
+            SELECT request_type_id, type_name, template_filename, template_mode
+            FROM request_types
+            ORDER BY type_name ASC
+        """)
+        request_types = cursor.fetchall()
+
+        cursor.execute("""
+            SELECT
+                r.request_id,
+                rt.type_name,
+                r.filename,
+                s.status_name,
+                r.created_at
+            FROM requests r
+            LEFT JOIN request_types rt ON r.request_type_id = rt.request_type_id
+            LEFT JOIN request_status s ON r.status_id = s.status_id
+            WHERE r.user_id = %s
+            ORDER BY r.request_id DESC
+        """, (user_id,))
+        all_request = cursor.fetchall()
+
+        # JSON-safe datetime
+        for r in all_request:
+            if r.get("created_at"):
+                r["created_at"] = r["created_at"].isoformat()
+
+        cursor.execute("""
+            SELECT
+                SUM(CASE WHEN s.status_name = 'PENDING' THEN 1 ELSE 0 END) AS pending_count,
+                SUM(CASE WHEN s.status_name = 'APPROVED' THEN 1 ELSE 0 END) AS approved_count,
+                SUM(CASE WHEN s.status_name = 'REJECTED' THEN 1 ELSE 0 END) AS rejected_count,
+                SUM(CASE WHEN s.status_name = 'COMPLETED' THEN 1 ELSE 0 END) AS completed_count
+            FROM requests r
+            JOIN request_status s ON r.status_id = s.status_id
+            WHERE r.user_id = %s
+        """, (user_id,))
+        counts = cursor.fetchone() or {}
+
+        return jsonify({
+            "request_types": request_types,
+            "all_request": all_request,
+            "counts": counts,
+        })
+    finally:
+        cursor.close()
+        conn.close()
 
 
 @app.route("/gsd_dashboard")
@@ -580,7 +647,7 @@ def gsdh_dashboard():
         """)
         inventory_items = cursor.fetchall()
 
-        # Requests assigned to THIS position (PENDING only)
+        # Requests assigned to THIS position (PENDING)
         cursor.execute("""
             SELECT 
                 r.request_id,
@@ -2740,7 +2807,6 @@ def admin_complete_request(request_id):
         if (req["status_name"] or "").upper() != "IN PROGRESS":
             return jsonify({"error": "Request must be IN PROGRESS first"}), 400
 
-        # inside admin_complete_request(request_id), after you verify IN PROGRESS...
 
         # get PENDING_USER status id
         cur.execute("""
@@ -3239,13 +3305,14 @@ def login():
 
 # Mobile API Endpoints (Connected to flutter)
 @app.route("/api/mobile/login", methods=["POST"])
+@csrf.exempt
 def mobile_login():
     data = request.get_json(silent=True) or {}
     e = (data.get("email") or "").strip().lower()
     pw = data.get("password") or ""
 
     if not e or not pw:
-        return jsonify({"error": "Email and password required"})
+        return jsonify({"error": "Email and password required"}), 400
 
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
@@ -3259,30 +3326,29 @@ def mobile_login():
             JOIN positions p ON u.position_id = p.position_id
             LEFT JOIN departments d ON u.dept_id = d.dept_id
             WHERE u.email = %s
-        """,
+            """,
             (e,),
         )
         user = cursor.fetchone()
 
         if not user or not check_password_hash(user["password"], pw):
-            return jsonify({"error": "Invalid credentials"})
+            return jsonify({"error": "Invalid credentials"}), 401
 
         if user["role_name"] != "User":
-            return jsonify({"error": "User role only"})
+            return jsonify({"error": "User role only"}), 403
 
         token = create_token(user["email"])
 
-        return jsonify(
-            {
-                "token": token,
-                "user": {
-                    "email": user["email"],
-                    "dept_name": user["dept_name"],
-                    "position_name": user["position_name"],
-                    "role_name": user["role_name"],
-                },
-            }
-        )
+        return jsonify({
+            "token": token,
+            "user": {
+                "email": user["email"],
+                "dept_name": user.get("dept_name"),
+                "position_name": user.get("position_name"),
+                "role_name": user.get("role_name"),
+            },
+        }), 200
+
     finally:
         cursor.close()
         conn.close()
@@ -3408,10 +3474,6 @@ def logout():
     return redirect("/login")
 
 
-
-from reportlab.pdfgen import canvas as _rl_canvas
-from reportlab.lib.utils import ImageReader as _ImageReader
-from pypdf import PdfReader as _PdfReader, PdfWriter as _PdfWriter
 
 
 def make_overlay_pdf(
@@ -3589,6 +3651,10 @@ test_text = [
     {"page": 0, "x": 470, "y": 330, "text": "CDR-))!", "font": 10},
 ]
 
+@app.get("/api/ping")
+def ping():
+    return jsonify({"ok": True})
+
 
 if __name__ == "__main__":
     app.run(
@@ -3596,3 +3662,4 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=(os.environ.get("FLASK_DEBUG", "true").lower() == "true"),
     ) 
+

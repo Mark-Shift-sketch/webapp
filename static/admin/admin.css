@@ -200,8 +200,6 @@ a {
   margin-top: 4px;
 }
 
-
-
 .date-widget {
   background-color: #f3f4f6;
   padding: 8px 14px;
@@ -234,17 +232,11 @@ a {
   }
 }
 
-
 @media (min-width: 1024px) {
-  
   .stats-grid {
     grid-template-columns: repeat(5, 1fr);
   }
-  
 }
-
-
-
 
 .stat-card {
   background-color: var(--bg-white);
@@ -948,4 +940,193 @@ button.btn-icon[title="Edit Workflow"] {
   background: var(--primary-accent);
   color: #fff;
   border-color: transparent;
+}
+
+/* MODAL OVERLAY */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 9999;
+
+  justify-content: center;
+  align-items: center;
+}
+
+/* MODAL BOX */
+.modal-content {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  max-width: calc(100% - 24px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.workflow-modal {
+  width: 720px;
+}
+
+/* HEADER */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.modal-header h3 {
+  margin: 0 0 0.35rem;
+}
+
+.modal-close {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* DIVIDER */
+.modal-divider {
+  margin: 14px 0;
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* GRID */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.full-width {
+  grid-column: span 2;
+}
+
+/* FORM */
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label {
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.text-muted {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+/* FOOTER */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+/* span full grid width */
+.full-width {
+  grid-column: span 2;
+}
+
+/* helper text */
+.form-hint {
+  font-size: 12px;
+  color: gray;
+  margin-bottom: 5px;
+}
+
+/* CC MODAL SIZE */
+.cc-modal {
+  width: 420px;
+}
+
+/* Modal Title */
+.modal-title {
+  margin-bottom: 1rem;
+}
+
+/* Shared spacing for form groups */
+.form-group {
+  margin-bottom: 1rem;
+}
+
+/* Optional: higher z-index for system popup */
+.modal-z3000 {
+  z-index: 3000;
+}
+
+/* SYS POPUP sizing + style */
+.sys-popup {
+  width: 420px;
+  max-width: calc(100% - 24px);
+  border-radius: 14px;
+  padding: 18px 18px 14px;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.3);
+}
+
+.sys-popup-title {
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+.sys-popup-msg {
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* CONFIRM MODAL sizing */
+.confirm-modal {
+  width: 420px;
+  max-width: calc(100% - 24px);
+}
+
+/* Confirm text spacing */
+.modal-text {
+  margin: 8px 0 0;
+  color: #374151;
+  line-height: 1.45;
+}
+
+/* APPROVE MODAL SIZE */
+.approve-modal {
+  width: 420px;
+}
+
+/* REJECT MODAL SIZE */
+.reject-modal {
+  width: 460px;
+}
+
+/* Shared modal text */
+.modal-text {
+  color: #6b7280;
+  margin: 0 0 1rem;
+}
+
+/* Modal buttons layout */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Form spacing */
+.form-group {
+  margin-bottom: 1rem;
 }
